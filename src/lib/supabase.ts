@@ -16,5 +16,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // but auth calls will fail gracefully or we can handle it in UI
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co', 
-  supabaseAnonKey || 'placeholder-key'
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      persistSession: true, // Ensure session persists
+      autoRefreshToken: true,
+    }
+  }
 )
