@@ -64,11 +64,6 @@ function App() {
   // Helper to find account balance by name (case-insensitive partial match)
   const getAccountBalance = (namePart: string): number => {
     const account = accounts.find(a => a.name.toLowerCase().includes(namePart.toLowerCase()))
-    // If found, return balance. If liability, it's usually negative in net worth calc, 
-    // but for "Starting Balance" of a credit card workbench, we usually want the negative number 
-    // (e.g., -500 balance means you owe 500).
-    // However, in the Accounts component, liabilities are stored as positive numbers usually (e.g. Balance: 500, is_liability: true).
-    // Let's assume we want to show the negative value in the workbench start.
     if (account) {
       return account.is_liability ? -Math.abs(account.current_balance) : account.current_balance
     }
@@ -97,15 +92,15 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+    <div className="min-h-screen bg-gray-100 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Budget Workbench</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">{session.user.email}</span>
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6 md:mb-8 gap-4">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Budget Workbench</h1>
+          <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+            <span className="text-xs md:text-sm text-gray-600 truncate max-w-[150px]">{session.user.email}</span>
             <button
               onClick={() => supabase.auth.signOut()}
-              className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+              className="px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors border border-red-200 md:border-transparent"
             >
               Sign Out
             </button>
@@ -115,27 +110,26 @@ function App() {
         <Accounts 
           userId={session.user.id} 
           onBalanceChange={setCurrentNetWorth}
-          onAccountsUpdate={setAccounts} // Capture accounts list
+          onAccountsUpdate={setAccounts} 
         />
         
         <div className="flex justify-end mb-4">
           <button
             onClick={() => setShowCreditCardWorkbench(!showCreditCardWorkbench)}
-            className="text-sm bg-white border border-gray-300 text-gray-700 px-3 py-1 rounded hover:bg-gray-50 transition shadow-sm"
+            className="text-xs md:text-sm bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded hover:bg-gray-50 transition shadow-sm w-full md:w-auto"
           >
             {showCreditCardWorkbench ? 'Hide Credit Card Workbenches' : 'Show Credit Card Workbenches'}
           </button>
         </div>
 
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Main Workbench Area (Takes up 3/4 width) */}
-          <div className="lg:col-span-3 space-y-8">
+          {/* Main Workbench Area (Takes up 3/4 width on desktop, full on mobile) */}
+          <div className="lg:col-span-3 space-y-8 order-2 lg:order-1">
             <Workbench 
               userId={session.user.id} 
               startingBalance={currentNetWorth}
               refreshTrigger={refreshWorkbench}
               title="Main Cash Flow"
-              // No filterTag means "Main" (where tag is null)
             />
 
             {showCreditCardWorkbench && (
@@ -165,8 +159,8 @@ function App() {
             )}
           </div>
 
-          {/* Sidebar: Bill Library (Takes up 1/4 width) */}
-          <div className="lg:col-span-1">
+          {/* Sidebar: Bill Library (Takes up 1/4 width on desktop, full on mobile) */}
+          <div className="lg:col-span-1 order-1 lg:order-2">
             <BillLibrary 
               userId={session.user.id}
               onTransactionAdded={() => setRefreshWorkbench(prev => prev + 1)}
