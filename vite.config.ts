@@ -8,5 +8,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
-  base: '/budget-manager/', // Set base path for GitHub Pages
+  // IMPORTANT: This must match your repository name exactly.
+  // If your repo is https://github.com/user/budget-manager, this should be '/budget-manager/'
+  base: '/budget-manager/',
 })
