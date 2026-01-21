@@ -96,6 +96,14 @@ function App() {
     return account?.id
   }
 
+  // Helper to find account name by name part (case-insensitive partial match)
+  const getAccountFullName = (namePart: string, fallback: string): string => {
+    const account = accounts.find(a => 
+      a.name.toLowerCase().includes(namePart.toLowerCase()) && a.is_liability
+    )
+    return account ? account.name : fallback
+  }
+
   if (error) {
     return (
       <div className="p-4 text-red-600">
@@ -198,7 +206,7 @@ function App() {
                   userId={session.user.id} 
                   startingBalance={getAccountBalance('CMW', true)} 
                   refreshTrigger={refreshWorkbench}
-                  title="Credit Card - CMW (3619)"
+                  title={getAccountFullName('CMW', 'Credit Card - CMW (3619)')}
                   filterTag="cc_1"
                   accountId={getAccountId('CMW', true)}
                 />
@@ -206,7 +214,7 @@ function App() {
                   userId={session.user.id} 
                   startingBalance={getAccountBalance('JGW', true)} 
                   refreshTrigger={refreshWorkbench}
-                  title="Credit Card - JGW (9299)"
+                  title={getAccountFullName('JGW', 'Credit Card - JGW (9299)')}
                   filterTag="cc_2"
                   accountId={getAccountId('JGW', true)}
                 />
@@ -214,7 +222,7 @@ function App() {
                   userId={session.user.id} 
                   startingBalance={getAccountBalance('SAMS', true)} 
                   refreshTrigger={refreshWorkbench}
-                  title="Credit Card - SAMS (1261)"
+                  title={getAccountFullName('SAMS', 'Credit Card - SAMS (1261)')}
                   filterTag="cc_3"
                   accountId={getAccountId('SAMS', true)}
                 />
@@ -230,9 +238,9 @@ function App() {
                 onTransactionAdded={() => setRefreshWorkbench(prev => prev + 1)}
                 workbenchOptions={[
                   { title: 'Main Cash Flow' },
-                  { title: 'CMW (3619)', tag: 'cc_1' },
-                  { title: 'JGW (9299)', tag: 'cc_2' },
-                  { title: 'SAMS (1261)', tag: 'cc_3' },
+                  { title: getAccountFullName('CMW', 'CMW (3619)'), tag: 'cc_1' },
+                  { title: getAccountFullName('JGW', 'JGW (9299)'), tag: 'cc_2' },
+                  { title: getAccountFullName('SAMS', 'SAMS (1261)'), tag: 'cc_3' },
                 ]}
               />
               <Notes userId={session.user.id} />

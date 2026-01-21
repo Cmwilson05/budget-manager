@@ -87,8 +87,8 @@ function SortableTransactionRow({
   if (isEditing) {
     return (
       <tr ref={setNodeRef} style={style} className="bg-blue-50">
-        <td className="px-4 py-3 whitespace-nowrap">
-          <div className="flex items-center gap-2">
+        <td className="px-4 py-3 align-top">
+          <div className="flex items-center gap-2 mt-1">
             <button disabled className="p-1 opacity-20">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="9" cy="12" r="1" />
@@ -104,44 +104,53 @@ function SortableTransactionRow({
             </div>
           </div>
         </td>
-        <td className="px-4 py-3">
-          <input
-            type="date"
-            value={editDate}
-            onChange={(e) => setEditDate(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-            className="w-full px-2 py-1 text-sm border rounded"
-          />
-        </td>
-        <td className="px-4 py-3">
-          <input
-            type="text"
-            value={editDesc}
-            onChange={(e) => setEditDesc(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-            className="w-full px-2 py-1 text-sm border rounded"
-          />
-        </td>
-        <td className="px-4 py-3">
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={editIsIncome}
-              onChange={(e) => setEditIsIncome(e.target.checked)}
-              className="rounded text-green-600"
-            />
-            <input
-              type="number"
-              step="0.01"
-              value={editAmount}
-              onChange={(e) => setEditAmount(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-              className="w-24 px-2 py-1 text-sm border rounded text-right font-mono"
-            />
+        <td colSpan={3} className="px-4 py-3">
+          <div className="flex flex-col gap-3">
+            <div className="flex-1">
+              <label className="block text-[10px] font-medium text-gray-500 uppercase mb-0.5">Description</label>
+              <input
+                type="text"
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                className="w-full px-2 py-1 text-sm border rounded"
+              />
+            </div>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="block text-[10px] font-medium text-gray-500 uppercase mb-0.5">Due Date</label>
+                <input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                  className="w-full px-2 py-1 text-sm border rounded min-h-[30px]"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-[10px] font-medium text-gray-500 uppercase mb-0.5">Amount</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={editIsIncome}
+                    onChange={(e) => setEditIsIncome(e.target.checked)}
+                    className="rounded text-green-600"
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editAmount}
+                    onChange={(e) => setEditAmount(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+                    className="w-full px-2 py-1 text-sm border rounded text-right font-mono"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </td>
-        <td className="px-4 py-3 text-right">
-          <div className="flex justify-end gap-2">
+        <td className="px-4 py-3 text-right align-top">
+          <div className="flex flex-col justify-end gap-2 mt-1">
             <button onClick={handleSave} className="text-green-600 hover:text-green-800 font-medium text-sm">Save</button>
             <button onClick={() => setIsEditing(false)} className="text-gray-500 hover:text-gray-700 text-sm">Cancel</button>
           </div>
@@ -430,8 +439,8 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
       </div>
 
       <div className="p-4 bg-gray-50 border-b border-gray-200 hide-in-screenshot">
-        <form onSubmit={addTransaction} className="flex flex-col md:flex-row gap-3 items-end">
-          <div className="flex-grow">
+        <form onSubmit={addTransaction} className="flex flex-col md:flex-row gap-3 items-start md:items-end">
+          <div className="w-full md:flex-grow">
             <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
             <input
               type="text"
@@ -442,8 +451,8 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
               required
             />
           </div>
-          <div className="flex gap-2 w-full md:w-auto">
-            <div className="w-1/2 md:w-32">
+          <div className="flex gap-2 w-full md:w-auto items-end">
+            <div className="flex-1 md:w-32">
               <label className="block text-xs font-medium text-gray-700 mb-1">Amount</label>
               <input
                 type="number"
@@ -455,13 +464,13 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
                 required
               />
             </div>
-            <div className="w-1/2 md:w-36">
+            <div className="flex-1 md:w-40">
               <label className="block text-xs font-medium text-gray-700 mb-1">Due Date</label>
               <input
                 type="date"
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
-                className="w-full px-3 py-2 border rounded text-sm"
+                className="w-full px-3 py-2 border rounded text-sm min-h-[38px]"
               />
             </div>
           </div>

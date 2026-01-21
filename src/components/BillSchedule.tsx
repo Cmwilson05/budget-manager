@@ -317,21 +317,25 @@ export default function BillSchedule({ userId, onTransactionAdded, workbenchOpti
             required
           />
           <div className="flex gap-2">
-            <input
-              type="number"
-              step="0.01"
-              placeholder="Amount"
-              className="w-1/2 px-2 py-1 border rounded"
-              value={newAmount}
-              onChange={e => setNewAmount(e.target.value)}
-              required
-            />
-            <input
-              type="date"
-              className="w-1/2 px-2 py-1 border rounded"
-              value={newDueDate}
-              onChange={e => setNewDueDate(e.target.value)}
-            />
+            <div className="w-1/2">
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Amount"
+                className="w-full px-2 py-1 border rounded"
+                value={newAmount}
+                onChange={e => setNewAmount(e.target.value)}
+                required
+              />
+            </div>
+            <div className="w-1/2">
+              <input
+                type="date"
+                className="w-full px-2 py-1 border rounded min-h-[30px]"
+                value={newDueDate}
+                onChange={e => setNewDueDate(e.target.value)}
+              />
+            </div>
           </div>
           <select
             className="w-full px-2 py-1 border rounded"
