@@ -256,15 +256,6 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
   }, [])
 
   useEffect(() => {
-    // Calculate net worth based on ALL accounts (for display in Accounts widget)
-    const totalAssets = accounts
-      .filter(a => !a.is_liability)
-      .reduce((sum, a) => sum + a.current_balance, 0)
-
-    const totalLiabilities = accounts
-      .filter(a => a.is_liability)
-      .reduce((sum, a) => sum + a.current_balance, 0)
-
     // Calculate workbench balance based ONLY on selected accounts (not in excludedIds)
     const workbenchAssets = accounts
       .filter(a => !a.is_liability && !excludedIds.includes(a.id))
