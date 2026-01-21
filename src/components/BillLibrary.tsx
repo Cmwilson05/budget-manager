@@ -65,7 +65,11 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
         ])
         .select()
 
-      if (error) throw error
+      if (error) {
+        // Check if error is due to constraint violation (e.g. invalid frequency enum)
+        console.error('Supabase Insert Error:', error)
+        throw error
+      }
 
       if (data) {
         setTemplates([...templates, data[0]])
@@ -76,6 +80,7 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
       }
     } catch (error) {
       console.error('Error creating template:', error)
+      alert('Failed to save template. Please check the console for details.')
     }
   }
 
@@ -99,10 +104,6 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
       if (error) throw error
       
       onTransactionAdded()
-      
-      // Optional: Auto-advance after adding? 
-      // For now, we leave it manual to give user control, 
-      // but we could call advanceDate(template) here if desired.
       
     } catch (error) {
       console.error('Error adding bill to workbench:', error)
