@@ -116,7 +116,7 @@ function SortableTransactionRow({
                 className="w-full px-2 py-1 text-sm border rounded"
               />
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1">
                 <label className="block text-[10px] font-medium text-gray-500 uppercase mb-0.5">Due Date</label>
                 <input
@@ -451,8 +451,8 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
               required
             />
           </div>
-          <div className="flex gap-2 w-full md:w-auto items-end">
-            <div className="flex-1 md:w-32">
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto items-start sm:items-end">
+            <div className="w-full sm:flex-1 md:w-32">
               <label className="block text-xs font-medium text-gray-700 mb-1">Amount</label>
               <input
                 type="number"
@@ -464,7 +464,7 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
                 required
               />
             </div>
-            <div className="flex-1 md:w-40">
+            <div className="w-full sm:flex-1 md:w-40">
               <label className="block text-xs font-medium text-gray-700 mb-1">Due Date</label>
               <input
                 type="date"
