@@ -23,6 +23,7 @@ function App() {
   const [currentNetWorth, setCurrentNetWorth] = useState(0)
   const [refreshWorkbench, setRefreshWorkbench] = useState(0)
   const [showCreditCardWorkbench, setShowCreditCardWorkbench] = useState(false)
+  const [screenshotMode, setScreenshotMode] = useState(false)
   
   // State to hold account balances
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -117,40 +118,73 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-8">
+    <div className={`min-h-screen bg-gray-100 p-4 md:p-8 ${screenshotMode ? 'screenshot-mode' : ''}`}>
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-6 md:mb-8 gap-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Budget Workbench</h1>
-          <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
-            <span className="text-xs md:text-sm text-gray-600 truncate max-w-[150px]">{session.user.email}</span>
-            <button
-              onClick={() => supabase.auth.signOut()}
-              className="px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors border border-red-200 md:border-transparent"
-            >
-              Sign Out
-            </button>
+        <div className="flex flex-col md:flex-row justify-between items-start mb-6 md:mb-8 gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Budget Manager</h1>
+            {screenshotMode && (
+              <p className="text-sm text-gray-500 mt-1">
+                Financial Report • {new Date().toLocaleDateString(undefined, { dateStyle: 'long' })}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-col items-end gap-2 w-full md:w-auto">
+            <div className="flex items-center gap-4 justify-between md:justify-end w-full">
+              <span className="text-xs md:text-sm text-gray-600 truncate max-w-[150px] hide-in-screenshot">{session.user.email}</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setScreenshotMode(!screenshotMode)}
+                  className={`px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm rounded-md transition-colors border shadow-sm ${
+                    screenshotMode 
+                      ? 'bg-blue-600 text-white border-blue-600 font-medium' 
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {screenshotMode ? 'Exit Clean View' : 'Clean View for Screenshot'}
+                </button>
+                <button
+                  onClick={() => supabase.auth.signOut()}
+                  className="px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors border border-red-200 md:border-transparent hide-in-screenshot"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+            {screenshotMode && (
+              <div className="bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
+                <span className="text-xs text-gray-500 uppercase font-bold mr-2">Net Worth:</span>
+                <span className={`text-xl font-bold ${currentNetWorth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  ${currentNetWorth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            )}
           </div>
         </div>
         
-        <Accounts 
-          userId={session.user.id} 
-          onBalanceChange={setCurrentNetWorth}
-          onAccountsUpdate={setAccounts} 
-        />
-        
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={() => setShowCreditCardWorkbench(!showCreditCardWorkbench)}
-            className="text-xs md:text-sm bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded hover:bg-gray-50 transition shadow-sm w-full md:w-auto"
-          >
-            {showCreditCardWorkbench ? 'Hide Credit Card Workbenches' : 'Show Credit Card Workbenches'}
-          </button>
-        </div>
-
-        {/* Main Layout: Grid with Workbench on Left, Bill Schedule on Right */}
+        {/* Main Layout: Grid with Accounts/Workbench on Left, Bill Schedule on Right */}
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Workbench Area (Takes up 2/3 space on large screens) */}
+          {/* Main Content Area (Takes up 2/3 space on large screens) */}
           <div className="lg:col-span-2 space-y-8">
+            <Accounts 
+              userId={session.user.id} 
+              onBalanceChange={(val) => {
+                console.log('Net worth update:', val)
+                setCurrentNetWorth(val)
+              }}
+              onAccountsUpdate={setAccounts} 
+            />
+            
+            <div className="flex justify-between items-center hide-in-screenshot">
+              <h2 className="text-xl font-semibold text-gray-800">Workbench</h2>
+              <button
+                onClick={() => setShowCreditCardWorkbench(!showCreditCardWorkbench)}
+                className="text-xs md:text-sm bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded hover:bg-gray-50 transition shadow-sm w-full md:w-auto"
+              >
+                {showCreditCardWorkbench ? 'Hide Credit Card Workbenches' : 'Show Credit Card Workbenches'}
+              </button>
+            </div>
+
             <Workbench 
               userId={session.user.id} 
               startingBalance={currentNetWorth}
@@ -159,7 +193,7 @@ function App() {
             />
 
             {showCreditCardWorkbench && (
-              <div className="space-y-8">
+              <div className="space-y-8 screenshot-break-before">
                 <Workbench 
                   userId={session.user.id} 
                   startingBalance={getAccountBalance('CMW', true)} 
@@ -188,20 +222,16 @@ function App() {
             )}
           </div>
 
-          {/* Bill Schedule (Takes up 1/3 space on large screens) */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-4">
+          {/* Bill Schedule & Notes (Takes up 1/3 space on large screens) */}
+          <div className="lg:col-span-1 space-y-8">
+            <div className="lg:sticky lg:top-8 space-y-8 h-fit">
               <BillSchedule
                 userId={session.user.id}
                 onTransactionAdded={() => setRefreshWorkbench(prev => prev + 1)}
               />
+              <Notes userId={session.user.id} />
             </div>
           </div>
-        </div>
-
-        {/* Notes Section (Full Width at Bottom) */}
-        <div className="mt-8">
-          <Notes userId={session.user.id} />
         </div>
       </div>
     </div>

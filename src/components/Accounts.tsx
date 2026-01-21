@@ -36,15 +36,20 @@ interface AccountsProps {
 // Sortable Row Component
 function SortableAccountRow({ 
   account, 
-  onEdit, 
   onDelete,
-  onToggleWorkbench
+  onToggleWorkbench,
+  onUpdate
 }: { 
   account: Account, 
-  onEdit: (acc: Account) => void, 
   onDelete: (id: string) => void,
-  onToggleWorkbench: (id: string, currentValue: boolean) => void
+  onToggleWorkbench: (id: string, currentValue: boolean) => void,
+  onUpdate: (id: string, updates: Partial<Account>) => void
 }) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState(account.name)
+  const [editBalance, setEditBalance] = useState(account.current_balance.toString())
+  const [editIsLiability, setEditIsLiability] = useState(account.is_liability)
+
   const {
     attributes,
     listeners,
@@ -52,13 +57,101 @@ function SortableAccountRow({
     transform,
     transition,
     isDragging
-  } = useSortable({ id: account.id })
+  } = useSortable({ id: account.id, disabled: isEditing })
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 10 : 'auto',
     position: isDragging ? 'relative' as const : 'static' as const,
+  }
+
+  const handleSave = () => {
+    const balance = parseFloat(editBalance)
+    if (isNaN(balance)) return
+
+    onUpdate(account.id, {
+      name: editName,
+      current_balance: balance,
+      is_liability: editIsLiability
+    })
+    setIsEditing(false)
+  }
+
+  if (isEditing) {
+    return (
+      <tr ref={setNodeRef} style={style} className="bg-blue-50">
+        <td className="px-4 py-3 whitespace-nowrap">
+          <div className="flex items-center gap-2">
+            {/* Drag Handle (Disabled) */}
+            <button disabled className="p-1 opacity-20">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="9" cy="12" r="1" />
+                <circle cx="9" cy="5" r="1" />
+                <circle cx="9" cy="19" r="1" />
+                <circle cx="15" cy="12" r="1" />
+                <circle cx="15" cy="5" r="1" />
+                <circle cx="15" cy="19" r="1" />
+              </svg>
+            </button>
+            <input
+              type="checkbox"
+              disabled
+              checked={account.include_in_workbench !== false}
+              className="rounded text-blue-600 opacity-20 mr-2"
+            />
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+              className="px-2 py-1 border rounded text-sm w-full focus:ring-2 focus:ring-blue-500 outline-none"
+              autoFocus
+            />
+          </div>
+        </td>
+        <td className="px-4 py-3 whitespace-nowrap text-right">
+          <input
+            type="number"
+            step="0.01"
+            value={editBalance}
+            onChange={(e) => setEditBalance(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            className="px-2 py-1 border rounded text-sm w-24 text-right focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+          />
+        </td>
+        <td className="px-4 py-3 whitespace-nowrap text-right hidden sm:table-cell">
+          <label className="inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={editIsLiability}
+              onChange={(e) => setEditIsLiability(e.target.checked)}
+              className="rounded text-blue-600 focus:ring-blue-500 mr-2"
+            />
+            <span className="text-xs font-semibold">{editIsLiability ? 'Liability' : 'Asset'}</span>
+          </label>
+        </td>
+        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium space-x-2">
+          <button
+            onClick={handleSave}
+            className="text-green-600 hover:text-green-900"
+          >
+            Save
+          </button>
+          <button
+            onClick={() => {
+              setEditName(account.name)
+              setEditBalance(account.current_balance.toString())
+              setEditIsLiability(account.is_liability)
+              setIsEditing(false)
+            }}
+            className="text-gray-600 hover:text-gray-900"
+          >
+            Cancel
+          </button>
+        </td>
+      </tr>
+    )
   }
 
   return (
@@ -72,7 +165,7 @@ function SortableAccountRow({
         <button 
           {...attributes} 
           {...listeners}
-          className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing p-1 flex-shrink-0"
+          className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing p-1 flex-shrink-0 hide-in-screenshot"
           title="Drag to reorder"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -90,14 +183,14 @@ function SortableAccountRow({
           type="checkbox"
           checked={account.include_in_workbench !== false}
           onChange={() => onToggleWorkbench(account.id, account.include_in_workbench !== false)}
-          className="rounded text-blue-600 focus:ring-blue-500 mr-2"
+          className="rounded text-blue-600 focus:ring-blue-500 mr-2 hide-in-screenshot"
           title="Include in Workbench Calculation"
           onPointerDown={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         />
 
         <button 
-          onClick={() => onEdit(account)}
+          onClick={() => setIsEditing(true)}
           className="hover:text-blue-600 hover:underline text-left truncate max-w-[120px] md:max-w-none"
         >
           {account.name}
@@ -113,9 +206,9 @@ function SortableAccountRow({
           {account.is_liability ? 'Liability' : 'Asset'}
         </span>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium space-x-2">
+      <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium space-x-2 hide-in-screenshot">
         <button
-          onClick={() => onEdit(account)}
+          onClick={() => setIsEditing(true)}
           className="text-blue-600 hover:text-blue-900"
         >
           Edit
@@ -136,7 +229,6 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
   const [excludedIds, setExcludedIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
   
   // Form state
   const [name, setName] = useState('')
@@ -165,13 +257,13 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
 
   useEffect(() => {
     // Calculate net worth based on ALL accounts (for display in Accounts widget)
-    // const totalAssets = accounts
-    //   .filter(a => !a.is_liability)
-    //   .reduce((sum, a) => sum + a.current_balance, 0)
+    const totalAssets = accounts
+      .filter(a => !a.is_liability)
+      .reduce((sum, a) => sum + a.current_balance, 0)
 
-    // const totalLiabilities = accounts
-    //   .filter(a => a.is_liability)
-    //   .reduce((sum, a) => sum + a.current_balance, 0)
+    const totalLiabilities = accounts
+      .filter(a => a.is_liability)
+      .reduce((sum, a) => sum + a.current_balance, 0)
 
     // Calculate workbench balance based ONLY on selected accounts (not in excludedIds)
     const workbenchAssets = accounts
@@ -248,20 +340,28 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
     localStorage.setItem('budget-manager-excluded-accounts', JSON.stringify(newExcludedIds))
   }
 
+  const toggleAllWorkbenchInclusion = () => {
+    const allAccountIds = accounts.map(acc => acc.id);
+    const allIncluded = excludedIds.length === 0; // If excludedIds is empty, all are included
+
+    let newExcludedIds: string[];
+    if (allIncluded) {
+      // If all are currently included, deselect all
+      newExcludedIds = allAccountIds;
+    } else {
+      // If some or all are excluded, select all
+      newExcludedIds = [];
+    }
+
+    setExcludedIds(newExcludedIds);
+    localStorage.setItem('budget-manager-excluded-accounts', JSON.stringify(newExcludedIds));
+  };
+
   const resetForm = () => {
     setName('')
     setBalance('')
     setIsLiability(false)
     setIsAdding(false)
-    setEditingId(null)
-  }
-
-  const startEditing = (account: Account) => {
-    setName(account.name)
-    setBalance(account.current_balance.toString())
-    setIsLiability(account.is_liability)
-    setEditingId(account.id)
-    setIsAdding(true)
   }
 
   const saveAccount = async (e: React.FormEvent) => {
@@ -269,43 +369,24 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
     if (!name || !balance) return
 
     try {
-      if (editingId) {
-        const { error } = await supabase
-          .from('accounts')
-          .update({
+      const maxSort = accounts.length > 0 ? Math.max(...accounts.map(a => a.sort_order || 0)) : 0
+
+      const { data, error } = await supabase
+        .from('accounts')
+        .insert([
+          {
+            user_id: userId,
             name,
             current_balance: parseFloat(balance),
-            is_liability: isLiability
-          })
-          .eq('id', editingId)
+            is_liability: isLiability,
+            sort_order: maxSort + 1
+          }
+        ])
+        .select()
 
-        if (error) throw error
-
-        setAccounts(accounts.map(acc => 
-          acc.id === editingId 
-            ? { ...acc, name, current_balance: parseFloat(balance), is_liability: isLiability }
-            : acc
-        ))
-      } else {
-        const maxSort = accounts.length > 0 ? Math.max(...accounts.map(a => a.sort_order || 0)) : 0
-
-        const { data, error } = await supabase
-          .from('accounts')
-          .insert([
-            {
-              user_id: userId,
-              name,
-              current_balance: parseFloat(balance),
-              is_liability: isLiability,
-              sort_order: maxSort + 1
-            }
-          ])
-          .select()
-
-        if (error) throw error
-        if (data) {
-          setAccounts([...accounts, data[0]])
-        }
+      if (error) throw error
+      if (data) {
+        setAccounts([...accounts, data[0]])
       }
       resetForm()
     } catch (error) {
@@ -316,7 +397,7 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
 
   const deleteAccount = async (id: string) => {
     if (!confirm('Are you sure you want to delete this account?')) return
-
+    
     try {
       const { error } = await supabase
         .from('accounts')
@@ -330,6 +411,24 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
     }
   }
 
+  const updateAccount = async (id: string, updates: Partial<Account>) => {
+    // Optimistic update
+    const previousAccounts = [...accounts]
+    setAccounts(accounts.map(acc => acc.id === id ? { ...acc, ...updates } : acc))
+
+    try {
+      const { error } = await supabase
+        .from('accounts')
+        .update(updates)
+        .eq('id', id)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error updating account:', error)
+      setAccounts(previousAccounts) // Rollback on error
+    }
+  }
+
   const totalAssets = accounts
     .filter(a => !a.is_liability)
     .reduce((sum, a) => sum + a.current_balance, 0)
@@ -340,25 +439,32 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
 
   const netWorth = totalAssets - totalLiabilities
 
+  // Send net worth back to parent for header display
+  useEffect(() => {
+    onBalanceChange(netWorth)
+  }, [netWorth, onBalanceChange])
+
   if (loading) return <div className="text-gray-500">Loading accounts...</div>
 
   return (
-    <div className="mb-8">
+    <div className="mb-0">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-semibold text-gray-800">Accounts</h2>
-        <button
-          onClick={() => {
-            resetForm()
-            setIsAdding(!isAdding)
-          }}
-          className="text-sm bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100 transition"
-        >
-          {isAdding ? 'Cancel' : '+ Add Account'}
-        </button>
+        <div className="flex gap-2 hide-in-screenshot">
+          <button
+            onClick={() => {
+              resetForm()
+              setIsAdding(!isAdding)
+            }}
+            className="text-sm bg-blue-50 text-blue-600 px-3 py-1 rounded hover:bg-blue-100 transition"
+          >
+            {isAdding ? 'Cancel' : '+ Add Account'}
+          </button>
+        </div>
       </div>
 
       {isAdding && (
-        <form onSubmit={saveAccount} className="bg-gray-50 p-4 rounded-lg mb-4 border border-gray-200">
+        <form onSubmit={saveAccount} className="bg-gray-50 p-4 rounded-lg mb-4 border border-gray-200 hide-in-screenshot">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
@@ -398,7 +504,7 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
               type="submit"
               className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
             >
-              {editingId ? 'Update Account' : 'Save Account'}
+              Save Account
             </button>
           </div>
         </form>
@@ -428,10 +534,23 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center">
+                    <div className="w-20 flex justify-center pr-2 hide-in-screenshot">
+                      <button
+                        onClick={toggleAllWorkbenchInclusion}
+                        className="text-[8px] bg-gray-200 text-gray-700 px-1 py-0.5 rounded hover:bg-gray-300 transition normal-case font-bold whitespace-nowrap"
+                        title={excludedIds.length === 0 ? 'Select None' : 'Select All'}
+                      >
+                        {excludedIds.length === 0 ? 'Select None' : 'Select All'}
+                      </button>
+                    </div>
+                    <span>Name</span>
+                  </div>
+                </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Type</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider hide-in-screenshot">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -446,9 +565,9 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
                       ...account,
                       include_in_workbench: !excludedIds.includes(account.id)
                     }}
-                    onEdit={startEditing}
                     onDelete={deleteAccount}
                     onToggleWorkbench={toggleWorkbenchInclusion}
+                    onUpdate={updateAccount}
                   />
                 ))}
               </SortableContext>

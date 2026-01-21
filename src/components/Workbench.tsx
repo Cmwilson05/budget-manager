@@ -42,12 +42,20 @@ interface WorkbenchProps {
 function SortableTransactionRow({ 
   transaction, 
   onToggleCalc, 
-  onDelete 
+  onDelete,
+  onUpdate
 }: { 
   transaction: Transaction, 
   onToggleCalc: (id: string, current: boolean) => void, 
-  onDelete: (id: string) => void 
+  onDelete: (id: string) => void,
+  onUpdate: (id: string, updates: Partial<Transaction>) => void
 }) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [editDesc, setEditDesc] = useState(transaction.description)
+  const [editAmount, setEditAmount] = useState(Math.abs(transaction.amount).toString())
+  const [editDate, setEditDate] = useState(transaction.due_date || '')
+  const [editIsIncome, setEditIsIncome] = useState(transaction.amount >= 0)
+
   const {
     attributes,
     listeners,
@@ -55,13 +63,91 @@ function SortableTransactionRow({
     transform,
     transition,
     isDragging
-  } = useSortable({ id: transaction.id })
+  } = useSortable({ id: transaction.id, disabled: isEditing })
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     zIndex: isDragging ? 10 : 'auto',
     position: isDragging ? 'relative' as const : 'static' as const,
+  }
+
+  const handleSave = () => {
+    const amount = parseFloat(editAmount)
+    if (isNaN(amount)) return
+
+    onUpdate(transaction.id, {
+      description: editDesc,
+      amount: editIsIncome ? amount : -amount,
+      due_date: editDate || undefined
+    })
+    setIsEditing(false)
+  }
+
+  if (isEditing) {
+    return (
+      <tr ref={setNodeRef} style={style} className="bg-blue-50">
+        <td className="px-4 py-3 whitespace-nowrap">
+          <div className="flex items-center gap-2">
+            <button disabled className="p-1 opacity-20">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="9" cy="12" r="1" />
+                <circle cx="9" cy="5" r="1" />
+                <circle cx="9" cy="19" r="1" />
+                <circle cx="15" cy="12" r="1" />
+                <circle cx="15" cy="5" r="1" />
+                <circle cx="15" cy="19" r="1" />
+              </svg>
+            </button>
+            <div className={`w-10 h-6 rounded-full opacity-50 relative ${transaction.is_in_calc ? 'bg-blue-600' : 'bg-gray-300'}`}>
+              <span className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full ${transaction.is_in_calc ? 'translate-x-4' : 'translate-x-0'}`} />
+            </div>
+          </div>
+        </td>
+        <td className="px-4 py-3">
+          <input
+            type="date"
+            value={editDate}
+            onChange={(e) => setEditDate(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            className="w-full px-2 py-1 text-sm border rounded"
+          />
+        </td>
+        <td className="px-4 py-3">
+          <input
+            type="text"
+            value={editDesc}
+            onChange={(e) => setEditDesc(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            className="w-full px-2 py-1 text-sm border rounded"
+          />
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={editIsIncome}
+              onChange={(e) => setEditIsIncome(e.target.checked)}
+              className="rounded text-green-600"
+            />
+            <input
+              type="number"
+              step="0.01"
+              value={editAmount}
+              onChange={(e) => setEditAmount(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+              className="w-24 px-2 py-1 text-sm border rounded text-right font-mono"
+            />
+          </div>
+        </td>
+        <td className="px-4 py-3 text-right">
+          <div className="flex justify-end gap-2">
+            <button onClick={handleSave} className="text-green-600 hover:text-green-800 font-medium text-sm">Save</button>
+            <button onClick={() => setIsEditing(false)} className="text-gray-500 hover:text-gray-700 text-sm">Cancel</button>
+          </div>
+        </td>
+      </tr>
+    )
   }
 
   return (
@@ -75,7 +161,7 @@ function SortableTransactionRow({
         <button 
           {...attributes} 
           {...listeners}
-          className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing p-1 flex-shrink-0"
+          className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing p-1 flex-shrink-0 hide-in-screenshot"
           title="Drag to reorder"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -90,7 +176,7 @@ function SortableTransactionRow({
 
         <button
           onClick={() => onToggleCalc(transaction.id, transaction.is_in_calc)}
-          className={`w-10 h-6 rounded-full transition-colors duration-200 ease-in-out relative focus:outline-none flex-shrink-0 ${
+          className={`w-10 h-6 rounded-full transition-colors duration-200 ease-in-out relative focus:outline-none flex-shrink-0 hide-in-screenshot ${
             transaction.is_in_calc ? 'bg-blue-600' : 'bg-gray-300'
           }`}
         >
@@ -112,13 +198,21 @@ function SortableTransactionRow({
       }`}>
         {transaction.amount >= 0 ? '+' : ''}{transaction.amount.toFixed(2)}
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-        <button
-          onClick={() => onDelete(transaction.id)}
-          className="text-red-400 hover:text-red-600"
-        >
-          &times;
-        </button>
+      <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium hide-in-screenshot">
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => setIsEditing(true)}
+            className="text-blue-600 hover:text-blue-800"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => onDelete(transaction.id)}
+            className="text-red-400 hover:text-red-600"
+          >
+            &times;
+          </button>
+        </div>
       </td>
     </tr>
   )
@@ -280,6 +374,25 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
     }
   }
 
+  const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
+    // Optimistic update
+    setTransactions(transactions.map(t => 
+      t.id === id ? { ...t, ...updates } : t
+    ))
+
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update(updates)
+        .eq('id', id)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error updating transaction:', error)
+      fetchTransactions() // Rollback on error
+    }
+  }
+
   const activeTransactions = transactions.filter(t => t.is_in_calc)
   const plannedIncome = activeTransactions
     .filter(t => t.amount > 0)
@@ -293,7 +406,7 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
   if (loading) return <div className="text-gray-500">Loading workbench...</div>
 
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200 mb-8">
+    <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
       <div className="bg-gray-800 text-white p-6">
         <h2 className="text-xl font-semibold mb-4">{title}</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
@@ -316,7 +429,7 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
         </div>
       </div>
 
-      <div className="p-4 bg-gray-50 border-b border-gray-200">
+      <div className="p-4 bg-gray-50 border-b border-gray-200 hide-in-screenshot">
         <form onSubmit={addTransaction} className="flex flex-col md:flex-row gap-3 items-end">
           <div className="flex-grow">
             <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
@@ -399,6 +512,7 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
                     transaction={t} 
                     onToggleCalc={toggleCalc}
                     onDelete={deleteTransaction}
+                    onUpdate={updateTransaction}
                   />
                 ))}
               </SortableContext>

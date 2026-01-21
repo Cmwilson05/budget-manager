@@ -87,7 +87,7 @@ export default function Notes({ userId }: NotesProps) {
             onChange={(e) => setContent(e.target.value)}
             containerProps={{ style: { height: '300px', overflowY: 'auto' } }}
           >
-             <Toolbar>
+             <Toolbar className="hide-in-screenshot">
               <BtnUndo />
               <BtnRedo />
               <BtnBold />

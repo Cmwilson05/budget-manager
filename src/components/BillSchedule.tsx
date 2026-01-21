@@ -277,7 +277,7 @@ export default function BillSchedule({ userId, onTransactionAdded }: BillSchedul
     <div className="bg-white rounded-lg shadow p-3 h-full">
       <div className="flex justify-between items-center mb-2">
         <h3 className="font-semibold text-gray-800">Bill Schedule</h3>
-        <div className="flex gap-2">
+        <div className="flex gap-2 hide-in-screenshot">
           <button
             onClick={() => setShowAnnual(!showAnnual)}
             className={`text-xs px-2 py-1 rounded transition border ${showAnnual ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}
@@ -298,7 +298,7 @@ export default function BillSchedule({ userId, onTransactionAdded }: BillSchedul
       </div>
 
       {isAdding && (
-        <form onSubmit={saveTemplate} className="mb-2 bg-gray-50 p-2 rounded border border-gray-200 text-sm space-y-2">
+        <form onSubmit={saveTemplate} className="mb-2 bg-gray-50 p-2 rounded border border-gray-200 text-sm space-y-2 hide-in-screenshot">
           <input
             type="text"
             placeholder="Name (e.g. Netflix)"
@@ -370,7 +370,7 @@ export default function BillSchedule({ userId, onTransactionAdded }: BillSchedul
                 </div>
               </div>
               
-              <div className="flex items-center gap-1 flex-shrink-0">
+              <div className="flex items-center gap-1 flex-shrink-0 hide-in-screenshot">
                 <button
                   onClick={() => advanceDate(t)}
                   className="text-xs bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-600 px-2 py-1 rounded transition"

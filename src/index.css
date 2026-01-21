@@ -1,1 +1,16 @@
 @import "tailwindcss";
+
+@layer utilities {
+  .screenshot-mode .hide-in-screenshot {
+    display: none !important;
+  }
+}
+
+@media print {
+  .hide-in-screenshot {
+    display: none !important;
+  }
+  .screenshot-break-before {
+    break-before: page;
+  }
+}
