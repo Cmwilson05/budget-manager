@@ -116,18 +116,18 @@ function SortableTransactionRow({
                 className="w-full px-2 py-1 text-sm border rounded"
               />
             </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1">
+            <div className="flex flex-col sm:flex-row gap-3 overflow-hidden">
+              <div className="flex-1 min-w-0">
                 <label className="block text-[10px] font-medium text-gray-500 uppercase mb-0.5">Due Date</label>
                 <input
                   type="date"
                   value={editDate}
                   onChange={(e) => setEditDate(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                  className="w-full px-2 py-1 text-sm border rounded min-h-[30px]"
+                  className="w-full px-2 py-1 text-sm border rounded min-h-[30px] box-border"
                 />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <label className="block text-[10px] font-medium text-gray-500 uppercase mb-0.5">Amount</label>
                 <div className="flex items-center gap-2">
                   <input
@@ -142,7 +142,7 @@ function SortableTransactionRow({
                     value={editAmount}
                     onChange={(e) => setEditAmount(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                    className="w-full px-2 py-1 text-sm border rounded text-right font-mono"
+                    className="w-full px-2 py-1 text-sm border rounded text-right font-mono box-border"
                   />
                 </div>
               </div>
@@ -451,7 +451,7 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
               required
             />
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto items-start sm:items-end">
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto items-start sm:items-end overflow-hidden">
             <div className="w-full sm:flex-1 md:w-32">
               <label className="block text-xs font-medium text-gray-700 mb-1">Amount</label>
               <input
@@ -459,18 +459,18 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
                 step="0.01"
                 value={newAmount}
                 onChange={(e) => setNewAmount(e.target.value)}
-                className="w-full px-3 py-2 border rounded text-sm"
+                className="w-full px-3 py-2 border rounded text-sm box-border"
                 placeholder="0.00"
                 required
               />
             </div>
-            <div className="w-full sm:flex-1 md:w-40">
+            <div className="w-full sm:flex-1 md:w-40 min-w-0">
               <label className="block text-xs font-medium text-gray-700 mb-1">Due Date</label>
               <input
                 type="date"
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
-                className="w-full px-3 py-2 border rounded text-sm min-h-[38px]"
+                className="w-full px-3 py-2 border rounded text-sm min-h-[38px] box-border"
               />
             </div>
           </div>

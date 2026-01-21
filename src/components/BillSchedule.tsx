@@ -316,22 +316,22 @@ export default function BillSchedule({ userId, onTransactionAdded, workbenchOpti
             onChange={e => setNewName(e.target.value)}
             required
           />
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 overflow-hidden">
             <div className="w-full sm:w-1/2">
               <input
                 type="number"
                 step="0.01"
                 placeholder="Amount"
-                className="w-full px-2 py-1 border rounded"
+                className="w-full px-2 py-1 border rounded box-border"
                 value={newAmount}
                 onChange={e => setNewAmount(e.target.value)}
                 required
               />
             </div>
-            <div className="w-full sm:w-1/2">
+            <div className="w-full sm:w-1/2 min-w-0">
               <input
                 type="date"
-                className="w-full px-2 py-1 border rounded min-h-[30px]"
+                className="w-full px-2 py-1 border rounded min-h-[30px] box-border"
                 value={newDueDate}
                 onChange={e => setNewDueDate(e.target.value)}
               />
