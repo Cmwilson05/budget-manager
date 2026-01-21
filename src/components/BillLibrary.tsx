@@ -37,8 +37,8 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
       const { data, error } = await supabase
         .from('bill_templates')
         .select('*')
-        .order('next_due_date', { ascending: true, nullsFirst: false }) // Sort by due date
-        .order('name', { ascending: true }) // Fallback sort
+        .order('next_due_date', { ascending: true, nullsFirst: false })
+        .order('name', { ascending: true })
       
       if (error) throw error
       setTemplates(data || [])
@@ -73,7 +73,6 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
 
     try {
       if (editingId) {
-        // Update existing
         const { error } = await supabase
           .from('bill_templates')
           .update({
@@ -86,24 +85,21 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
 
         if (error) throw error
 
-        // Optimistic update + re-sort locally
         const updatedTemplates = templates.map(t => 
           t.id === editingId 
             ? { ...t, name: newName, default_amount: parseFloat(newAmount), frequency: newFrequency, next_due_date: newDueDate || null }
             : t
         )
         
-        // Simple local sort to reflect change immediately
         updatedTemplates.sort((a, b) => {
           if (!a.next_due_date) return 1;
           if (!b.next_due_date) return -1;
-          return new Date(a.next_due_date).getTime() - new Date(b.next_due_date).getTime();
+          return new Date(a.next_due_date + 'T12:00:00').getTime() - new Date(b.next_due_date + 'T12:00:00').getTime();
         });
 
         setTemplates(updatedTemplates)
 
       } else {
-        // Create new
         const { data, error } = await supabase
           .from('bill_templates')
           .insert([
@@ -121,11 +117,10 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
 
         if (data) {
           const newTemplates = [...templates, data[0]]
-          // Sort new list
           newTemplates.sort((a, b) => {
             if (!a.next_due_date) return 1;
             if (!b.next_due_date) return -1;
-            return new Date(a.next_due_date).getTime() - new Date(b.next_due_date).getTime();
+            return new Date(a.next_due_date + 'T12:00:00').getTime() - new Date(b.next_due_date + 'T12:00:00').getTime();
           });
           setTemplates(newTemplates)
         }
@@ -166,39 +161,44 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
   const advanceDate = async (template: BillTemplate) => {
     if (!template.next_due_date) return
 
-    const currentDate = new Date(template.next_due_date)
-    const userTimezoneOffset = currentDate.getTimezoneOffset() * 60000
-    const adjustedDate = new Date(currentDate.getTime() + userTimezoneOffset)
+    // Parse date manually to avoid timezone shifts
+    // "2024-02-01" -> [2024, 2, 1]
+    const [year, month, day] = template.next_due_date.split('-').map(Number)
     
-    let nextDate = new Date(adjustedDate)
+    // Create date object using local time (month is 0-indexed)
+    const currentDate = new Date(year, month - 1, day)
+    
+    let nextDate = new Date(currentDate)
 
     switch (template.frequency) {
       case 'bi-weekly':
-        nextDate.setDate(adjustedDate.getDate() + 14)
+        nextDate.setDate(currentDate.getDate() + 14)
         break
       case 'monthly':
-        nextDate.setMonth(adjustedDate.getMonth() + 1)
+        nextDate.setMonth(currentDate.getMonth() + 1)
         break
       case 'quarterly':
-        nextDate.setMonth(adjustedDate.getMonth() + 3)
+        nextDate.setMonth(currentDate.getMonth() + 3)
         break
       case 'annually':
-        nextDate.setFullYear(adjustedDate.getFullYear() + 1)
+        nextDate.setFullYear(currentDate.getFullYear() + 1)
         break
     }
 
-    const nextDateString = nextDate.toISOString().split('T')[0]
+    // Format back to YYYY-MM-DD manually
+    const y = nextDate.getFullYear()
+    const m = String(nextDate.getMonth() + 1).padStart(2, '0')
+    const d = String(nextDate.getDate()).padStart(2, '0')
+    const nextDateString = `${y}-${m}-${d}`
 
-    // Optimistic update
     const updatedTemplates = templates.map(t => 
       t.id === template.id ? { ...t, next_due_date: nextDateString } : t
     )
     
-    // Re-sort locally so the item jumps to its new position
     updatedTemplates.sort((a, b) => {
       if (!a.next_due_date) return 1;
       if (!b.next_due_date) return -1;
-      return new Date(a.next_due_date).getTime() - new Date(b.next_due_date).getTime();
+      return new Date(a.next_due_date + 'T12:00:00').getTime() - new Date(b.next_due_date + 'T12:00:00').getTime();
     });
 
     setTemplates(updatedTemplates)
@@ -230,6 +230,13 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
     } catch (error) {
       console.error('Error deleting template:', error)
     }
+  }
+
+  // Helper to format date for display without timezone shift
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'N/A'
+    const [year, month, day] = dateString.split('-')
+    return `${parseInt(month)}/${parseInt(day)}/${year}`
   }
 
   if (loading) return <div className="text-gray-500 text-sm">Loading library...</div>
@@ -328,7 +335,7 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
             
             <div className="flex items-center justify-between mt-2 bg-white p-1 rounded border border-gray-100">
               <div className="text-xs text-gray-600 px-2">
-                Due: <span className="font-medium">{t.next_due_date ? new Date(t.next_due_date).toLocaleDateString() : 'N/A'}</span>
+                Due: <span className="font-medium">{formatDate(t.next_due_date)}</span>
               </div>
               <div className="flex gap-1">
                 <button
