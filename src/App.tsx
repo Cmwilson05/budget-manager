@@ -4,7 +4,7 @@ import type { Session } from '@supabase/supabase-js'
 import Auth from './components/Auth'
 import Accounts from './components/Accounts'
 import Workbench from './components/Workbench'
-import BillLibrary from './components/BillLibrary'
+import BillSchedule from './components/BillSchedule'
 import Notes from './components/Notes'
 
 // Define Account interface here or import it
@@ -93,7 +93,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 md:mb-8 gap-4">
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Budget Workbench</h1>
           <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
@@ -122,9 +122,10 @@ function App() {
           </button>
         </div>
 
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Main Workbench Area (Takes up 3/4 width on desktop, full on mobile) */}
-          <div className="lg:col-span-3 space-y-8 order-2 lg:order-1">
+        {/* Main Layout: Grid with Workbench on Left, Bill Schedule on Right */}
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Workbench Area (Takes up 2/3 space on large screens) */}
+          <div className="lg:col-span-2 space-y-8">
             <Workbench 
               userId={session.user.id} 
               startingBalance={currentNetWorth}
@@ -133,7 +134,7 @@ function App() {
             />
 
             {showCreditCardWorkbench && (
-              <>
+              <div className="space-y-8">
                 <Workbench 
                   userId={session.user.id} 
                   startingBalance={getAccountBalance('CMW')} 
@@ -155,16 +156,18 @@ function App() {
                   title="Credit Card - SAMS (1261)"
                   filterTag="cc_3"
                 />
-              </>
+              </div>
             )}
           </div>
 
-          {/* Sidebar: Bill Library (Takes up 1/4 width on desktop, full on mobile) */}
-          <div className="lg:col-span-1 order-1 lg:order-2">
-            <BillLibrary 
-              userId={session.user.id}
-              onTransactionAdded={() => setRefreshWorkbench(prev => prev + 1)}
-            />
+          {/* Bill Schedule (Takes up 1/3 space on large screens) */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-4">
+              <BillSchedule
+                userId={session.user.id}
+                onTransactionAdded={() => setRefreshWorkbench(prev => prev + 1)}
+              />
+            </div>
           </div>
         </div>
 

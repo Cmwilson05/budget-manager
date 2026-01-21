@@ -12,16 +12,17 @@ interface BillTemplate {
   last_advanced_at: string | null // New field
 }
 
-interface BillLibraryProps {
+interface BillScheduleProps {
   userId: string
   onTransactionAdded: () => void
 }
 
-export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryProps) {
+export default function BillSchedule({ userId, onTransactionAdded }: BillScheduleProps) {
   const [templates, setTemplates] = useState<BillTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [showAnnual, setShowAnnual] = useState(true)
 
   // Form State
   const [newName, setNewName] = useState('')
@@ -268,21 +269,32 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
     }
   }
 
-  if (loading) return <div className="text-gray-500 text-sm">Loading library...</div>
+  const filteredTemplates = templates.filter(t => showAnnual || t.frequency !== 'annually')
+
+  if (loading) return <div className="text-gray-500 text-sm">Loading schedule...</div>
 
   return (
     <div className="bg-white rounded-lg shadow p-3 h-full">
       <div className="flex justify-between items-center mb-2">
-        <h3 className="font-semibold text-gray-800">Bill Library</h3>
-        <button
-          onClick={() => {
-            resetForm()
-            setIsAdding(!isAdding)
-          }}
-          className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition"
-        >
-          {isAdding ? 'Cancel' : '+ New'}
-        </button>
+        <h3 className="font-semibold text-gray-800">Bill Schedule</h3>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowAnnual(!showAnnual)}
+            className={`text-xs px-2 py-1 rounded transition border ${showAnnual ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-gray-50 text-gray-500 border-gray-200'}`}
+            title={showAnnual ? 'Hide Annual Bills' : 'Show Annual Bills'}
+          >
+            {showAnnual ? 'Hide Annual' : 'Show Annual'}
+          </button>
+          <button
+            onClick={() => {
+              resetForm()
+              setIsAdding(!isAdding)
+            }}
+            className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition"
+          >
+            {isAdding ? 'Cancel' : '+ New'}
+          </button>
+        </div>
       </div>
 
       {isAdding && (
@@ -332,7 +344,7 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
       )}
 
       <div className="space-y-1">
-        {templates.map(t => (
+        {filteredTemplates.map(t => (
           <div key={t.id} className="p-2 hover:bg-gray-50 rounded border border-transparent hover:border-gray-200 group transition">
             <div className="flex justify-between items-center">
               <div 
@@ -395,7 +407,7 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
             </div>
           </div>
         ))}
-        {templates.length === 0 && !isAdding && (
+        {filteredTemplates.length === 0 && !isAdding && (
           <p className="text-xs text-gray-400 text-center py-4">
             No templates yet.
           </p>
