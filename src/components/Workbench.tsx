@@ -124,7 +124,7 @@ function SortableTransactionRow({
   )
 }
 
-export default function Workbench({ userId, startingBalance, refreshTrigger, title = "Forecasting Workbench", filterTag, accountId }: WorkbenchProps) {
+export default function Workbench({ userId, startingBalance, refreshTrigger, title = "Forecasting Workbench", filterTag }: WorkbenchProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   
