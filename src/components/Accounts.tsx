@@ -24,6 +24,7 @@ interface Account {
   current_balance: number
   is_liability: boolean
   sort_order: number
+  include_in_workbench?: boolean // Computed field
 }
 
 interface AccountsProps {
@@ -36,11 +37,13 @@ interface AccountsProps {
 function SortableAccountRow({ 
   account, 
   onEdit, 
-  onDelete 
+  onDelete,
+  onToggleWorkbench
 }: { 
   account: Account, 
   onEdit: (acc: Account) => void, 
-  onDelete: (id: string) => void 
+  onDelete: (id: string) => void,
+  onToggleWorkbench: (id: string, currentValue: boolean) => void
 }) {
   const {
     attributes,
@@ -81,6 +84,18 @@ function SortableAccountRow({
             <circle cx="15" cy="19" r="1" />
           </svg>
         </button>
+        
+        {/* Workbench Toggle */}
+        <input
+          type="checkbox"
+          checked={account.include_in_workbench !== false}
+          onChange={() => onToggleWorkbench(account.id, account.include_in_workbench !== false)}
+          className="rounded text-blue-600 focus:ring-blue-500 mr-2"
+          title="Include in Workbench Calculation"
+          onPointerDown={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        />
+
         <button 
           onClick={() => onEdit(account)}
           className="hover:text-blue-600 hover:underline text-left truncate max-w-[120px] md:max-w-none"
@@ -118,6 +133,7 @@ function SortableAccountRow({
 
 export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: AccountsProps) {
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [excludedIds, setExcludedIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -135,10 +151,20 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
   )
 
   useEffect(() => {
+    // Load excluded IDs from local storage
+    const saved = localStorage.getItem('budget-manager-excluded-accounts')
+    if (saved) {
+      try {
+        setExcludedIds(JSON.parse(saved))
+      } catch (e) {
+        console.error('Failed to parse excluded accounts', e)
+      }
+    }
     fetchAccounts()
   }, [])
 
   useEffect(() => {
+    // Calculate net worth based on ALL accounts (for display in Accounts widget)
     const totalAssets = accounts
       .filter(a => !a.is_liability)
       .reduce((sum, a) => sum + a.current_balance, 0)
@@ -147,12 +173,24 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
       .filter(a => a.is_liability)
       .reduce((sum, a) => sum + a.current_balance, 0)
 
-    onBalanceChange(totalAssets - totalLiabilities)
+    // Calculate workbench balance based ONLY on selected accounts (not in excludedIds)
+    const workbenchAssets = accounts
+      .filter(a => !a.is_liability && !excludedIds.includes(a.id))
+      .reduce((sum, a) => sum + a.current_balance, 0)
+
+    const workbenchLiabilities = accounts
+      .filter(a => a.is_liability && !excludedIds.includes(a.id))
+      .reduce((sum, a) => sum + a.current_balance, 0)
+      
+    const workbenchNetWorth = workbenchAssets - workbenchLiabilities
+
+    // Pass the WORKBENCH net worth to the parent
+    onBalanceChange(workbenchNetWorth)
     
     if (onAccountsUpdate) {
       onAccountsUpdate(accounts)
     }
-  }, [accounts, onBalanceChange, onAccountsUpdate])
+  }, [accounts, excludedIds, onBalanceChange, onAccountsUpdate])
 
   const fetchAccounts = async () => {
     try {
@@ -193,6 +231,21 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
         return newOrder
       })
     }
+  }
+
+  const toggleWorkbenchInclusion = (id: string, currentIncluded: boolean) => {
+    let newExcludedIds: string[]
+    
+    if (currentIncluded) {
+      // If currently included, we want to exclude it
+      newExcludedIds = [...excludedIds, id]
+    } else {
+      // If currently excluded, we want to include it (remove from excluded list)
+      newExcludedIds = excludedIds.filter(exId => exId !== id)
+    }
+    
+    setExcludedIds(newExcludedIds)
+    localStorage.setItem('budget-manager-excluded-accounts', JSON.stringify(newExcludedIds))
   }
 
   const resetForm = () => {
@@ -389,9 +442,13 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
                 {accounts.map((account) => (
                   <SortableAccountRow 
                     key={account.id} 
-                    account={account} 
+                    account={{
+                      ...account,
+                      include_in_workbench: !excludedIds.includes(account.id)
+                    }}
                     onEdit={startEditing}
                     onDelete={deleteAccount}
+                    onToggleWorkbench={toggleWorkbenchInclusion}
                   />
                 ))}
               </SortableContext>
