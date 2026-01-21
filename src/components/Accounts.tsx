@@ -256,7 +256,10 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
   }, [])
 
   useEffect(() => {
-    // Calculate workbench balance based ONLY on selected accounts (not in excludedIds)
+    // 1. Calculate TOTAL net worth for the display cards in THIS component
+    // (This is what totalAssets, totalLiabilities, and netWorth variables below use)
+    
+    // 2. Calculate WORKBENCH balance based ONLY on selected accounts (not in excludedIds)
     const workbenchAssets = accounts
       .filter(a => !a.is_liability && !excludedIds.includes(a.id))
       .reduce((sum, a) => sum + a.current_balance, 0)
@@ -429,11 +432,6 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
     .reduce((sum, a) => sum + a.current_balance, 0)
 
   const netWorth = totalAssets - totalLiabilities
-
-  // Send net worth back to parent for header display
-  useEffect(() => {
-    onBalanceChange(netWorth)
-  }, [netWorth, onBalanceChange])
 
   if (loading) return <div className="text-gray-500">Loading accounts...</div>
 
