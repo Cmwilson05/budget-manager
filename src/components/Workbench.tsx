@@ -69,12 +69,12 @@ function SortableTransactionRow({
       style={style} 
       className={`${!transaction.is_in_calc ? "bg-gray-50 opacity-60" : "bg-white"} ${isDragging ? 'shadow-lg opacity-80 z-10' : ''}`}
     >
-      <td className="px-6 py-4 whitespace-nowrap flex items-center gap-3">
+      <td className="px-4 py-3 whitespace-nowrap flex items-center gap-2">
         {/* Drag Handle */}
         <button 
           {...attributes} 
           {...listeners}
-          className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing p-1"
+          className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing p-1 flex-shrink-0"
           title="Drag to reorder"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -89,7 +89,7 @@ function SortableTransactionRow({
 
         <button
           onClick={() => onToggleCalc(transaction.id, transaction.is_in_calc)}
-          className={`w-10 h-6 rounded-full transition-colors duration-200 ease-in-out relative focus:outline-none ${
+          className={`w-10 h-6 rounded-full transition-colors duration-200 ease-in-out relative focus:outline-none flex-shrink-0 ${
             transaction.is_in_calc ? 'bg-blue-600' : 'bg-gray-300'
           }`}
         >
@@ -100,18 +100,18 @@ function SortableTransactionRow({
           />
         </button>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
         {transaction.due_date ? new Date(transaction.due_date).toLocaleDateString() : '-'}
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-[120px] md:max-w-none">
         {transaction.description}
       </td>
-      <td className={`px-6 py-4 whitespace-nowrap text-sm text-right font-mono font-medium ${
+      <td className={`px-4 py-3 whitespace-nowrap text-sm text-right font-mono font-medium ${
         transaction.amount >= 0 ? 'text-green-600' : 'text-red-600'
       }`}>
         {transaction.amount >= 0 ? '+' : ''}{transaction.amount.toFixed(2)}
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+      <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
         <button
           onClick={() => onDelete(transaction.id)}
           className="text-red-400 hover:text-red-600"
@@ -362,7 +362,7 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
           </div>
           <button
             type="submit"
-            className="bg-gray-800 text-white px-4 py-2 rounded text-sm hover:bg-gray-700 transition"
+            className="bg-gray-800 text-white px-4 py-2 rounded text-sm hover:bg-gray-700 transition w-full md:w-auto"
           >
             Add
           </button>
@@ -378,11 +378,11 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">Calc</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">Calc</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">

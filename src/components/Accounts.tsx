@@ -29,7 +29,7 @@ interface Account {
 interface AccountsProps {
   userId: string
   onBalanceChange: (netWorth: number) => void
-  onAccountsUpdate?: (accounts: Account[]) => void // New prop to pass accounts up
+  onAccountsUpdate?: (accounts: Account[]) => void
 }
 
 // Sortable Row Component
@@ -64,12 +64,12 @@ function SortableAccountRow({
       style={style} 
       className={`hover:bg-gray-50 transition-colors ${isDragging ? 'bg-blue-50 shadow-lg opacity-80' : 'bg-white'}`}
     >
-      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 flex items-center gap-3">
+      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 flex items-center gap-2">
         {/* Drag Handle */}
         <button 
           {...attributes} 
           {...listeners}
-          className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing p-1"
+          className="cursor-grab text-gray-400 hover:text-gray-600 active:cursor-grabbing p-1 flex-shrink-0"
           title="Drag to reorder"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -83,22 +83,22 @@ function SortableAccountRow({
         </button>
         <button 
           onClick={() => onEdit(account)}
-          className="hover:text-blue-600 hover:underline text-left"
+          className="hover:text-blue-600 hover:underline text-left truncate max-w-[120px] md:max-w-none"
         >
           {account.name}
         </button>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500 font-mono">
+      <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-500 font-mono">
         ${account.current_balance.toFixed(2)}
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+      <td className="px-4 py-3 whitespace-nowrap text-sm text-right hidden sm:table-cell">
         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
           account.is_liability ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
         }`}>
           {account.is_liability ? 'Liability' : 'Asset'}
         </span>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+      <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium space-x-2">
         <button
           onClick={() => onEdit(account)}
           className="text-blue-600 hover:text-blue-900"
@@ -138,7 +138,6 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
     fetchAccounts()
   }, [])
 
-  // Recalculate net worth whenever accounts change
   useEffect(() => {
     const totalAssets = accounts
       .filter(a => !a.is_liability)
@@ -150,7 +149,6 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
 
     onBalanceChange(totalAssets - totalLiabilities)
     
-    // Notify parent of account updates
     if (onAccountsUpdate) {
       onAccountsUpdate(accounts)
     }
@@ -162,7 +160,7 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
         .from('accounts')
         .select('*')
         .order('sort_order', { ascending: true })
-        .order('name', { ascending: true }) // Fallback sort
+        .order('name', { ascending: true })
       
       if (error) throw error
       setAccounts(data || [])
@@ -183,15 +181,11 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
         
         const newOrder = arrayMove(items, oldIndex, newIndex)
         
-        // Persist new order to DB
-        // We update the sort_order for all affected items
-        // This is a simple approach; for large lists, we might optimize
         const updates = newOrder.map((acc, index) => ({
           id: acc.id,
           sort_order: index
         }))
 
-        // Fire and forget update (optimistic UI)
         updates.forEach(async (update) => {
            await supabase.from('accounts').update({ sort_order: update.sort_order }).eq('id', update.id)
         })
@@ -223,7 +217,6 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
 
     try {
       if (editingId) {
-        // Update existing
         const { error } = await supabase
           .from('accounts')
           .update({
@@ -241,8 +234,6 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
             : acc
         ))
       } else {
-        // Create new
-        // Get max sort order to append to end
         const maxSort = accounts.length > 0 ? Math.max(...accounts.map(a => a.sort_order || 0)) : 0
 
         const { data, error } = await supabase
@@ -375,7 +366,7 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
         </div>
       </div>
 
-      <div className="bg-white border rounded-lg overflow-hidden">
+      <div className="bg-white border rounded-lg overflow-hidden overflow-x-auto">
         <DndContext 
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -384,10 +375,10 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">Type</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
