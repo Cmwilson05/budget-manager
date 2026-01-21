@@ -20,6 +20,7 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
   const [templates, setTemplates] = useState<BillTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   // Form State
   const [newName, setNewName] = useState('')
@@ -36,7 +37,8 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
       const { data, error } = await supabase
         .from('bill_templates')
         .select('*')
-        .order('name')
+        .order('next_due_date', { ascending: true, nullsFirst: false }) // Sort by due date
+        .order('name', { ascending: true }) // Fallback sort
       
       if (error) throw error
       setTemplates(data || [])
@@ -47,40 +49,91 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
     }
   }
 
-  const createTemplate = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setNewName('')
+    setNewAmount('')
+    setNewFrequency('monthly')
+    setNewDueDate('')
+    setIsAdding(false)
+    setEditingId(null)
+  }
+
+  const startEditing = (template: BillTemplate) => {
+    setNewName(template.name)
+    setNewAmount(template.default_amount.toString())
+    setNewFrequency(template.frequency)
+    setNewDueDate(template.next_due_date || '')
+    setEditingId(template.id)
+    setIsAdding(true)
+  }
+
+  const saveTemplate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newName || !newAmount) return
 
     try {
-      const { data, error } = await supabase
-        .from('bill_templates')
-        .insert([
-          {
-            user_id: userId,
+      if (editingId) {
+        // Update existing
+        const { error } = await supabase
+          .from('bill_templates')
+          .update({
             name: newName,
             default_amount: parseFloat(newAmount),
             frequency: newFrequency,
             next_due_date: newDueDate || null
-          }
-        ])
-        .select()
+          })
+          .eq('id', editingId)
 
-      if (error) {
-        // Check if error is due to constraint violation (e.g. invalid frequency enum)
-        console.error('Supabase Insert Error:', error)
-        throw error
-      }
+        if (error) throw error
 
-      if (data) {
-        setTemplates([...templates, data[0]])
-        setNewName('')
-        setNewAmount('')
-        setNewDueDate('')
-        setIsAdding(false)
+        // Optimistic update + re-sort locally
+        const updatedTemplates = templates.map(t => 
+          t.id === editingId 
+            ? { ...t, name: newName, default_amount: parseFloat(newAmount), frequency: newFrequency, next_due_date: newDueDate || null }
+            : t
+        )
+        
+        // Simple local sort to reflect change immediately
+        updatedTemplates.sort((a, b) => {
+          if (!a.next_due_date) return 1;
+          if (!b.next_due_date) return -1;
+          return new Date(a.next_due_date).getTime() - new Date(b.next_due_date).getTime();
+        });
+
+        setTemplates(updatedTemplates)
+
+      } else {
+        // Create new
+        const { data, error } = await supabase
+          .from('bill_templates')
+          .insert([
+            {
+              user_id: userId,
+              name: newName,
+              default_amount: parseFloat(newAmount),
+              frequency: newFrequency,
+              next_due_date: newDueDate || null
+            }
+          ])
+          .select()
+
+        if (error) throw error
+
+        if (data) {
+          const newTemplates = [...templates, data[0]]
+          // Sort new list
+          newTemplates.sort((a, b) => {
+            if (!a.next_due_date) return 1;
+            if (!b.next_due_date) return -1;
+            return new Date(a.next_due_date).getTime() - new Date(b.next_due_date).getTime();
+          });
+          setTemplates(newTemplates)
+        }
       }
+      resetForm()
     } catch (error) {
-      console.error('Error creating template:', error)
-      alert('Failed to save template. Please check the console for details.')
+      console.error('Error saving template:', error)
+      alert('Failed to save template.')
     }
   }
 
@@ -114,7 +167,6 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
     if (!template.next_due_date) return
 
     const currentDate = new Date(template.next_due_date)
-    // Adjust for timezone offset to prevent date shifting
     const userTimezoneOffset = currentDate.getTimezoneOffset() * 60000
     const adjustedDate = new Date(currentDate.getTime() + userTimezoneOffset)
     
@@ -138,9 +190,18 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
     const nextDateString = nextDate.toISOString().split('T')[0]
 
     // Optimistic update
-    setTemplates(templates.map(t => 
+    const updatedTemplates = templates.map(t => 
       t.id === template.id ? { ...t, next_due_date: nextDateString } : t
-    ))
+    )
+    
+    // Re-sort locally so the item jumps to its new position
+    updatedTemplates.sort((a, b) => {
+      if (!a.next_due_date) return 1;
+      if (!b.next_due_date) return -1;
+      return new Date(a.next_due_date).getTime() - new Date(b.next_due_date).getTime();
+    });
+
+    setTemplates(updatedTemplates)
 
     try {
       const { error } = await supabase
@@ -151,7 +212,7 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
       if (error) throw error
     } catch (error) {
       console.error('Error advancing date:', error)
-      fetchTemplates() // Revert on error
+      fetchTemplates()
     }
   }
 
@@ -178,7 +239,10 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
       <div className="flex justify-between items-center mb-4">
         <h3 className="font-semibold text-gray-800">Bill Library</h3>
         <button
-          onClick={() => setIsAdding(!isAdding)}
+          onClick={() => {
+            resetForm()
+            setIsAdding(!isAdding)
+          }}
           className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded transition"
         >
           {isAdding ? 'Cancel' : '+ New'}
@@ -186,7 +250,7 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
       </div>
 
       {isAdding && (
-        <form onSubmit={createTemplate} className="mb-4 bg-gray-50 p-3 rounded border border-gray-200 text-sm space-y-2">
+        <form onSubmit={saveTemplate} className="mb-4 bg-gray-50 p-3 rounded border border-gray-200 text-sm space-y-2">
           <input
             type="text"
             placeholder="Name (e.g. Netflix)"
@@ -226,7 +290,7 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
             type="submit"
             className="w-full bg-blue-600 text-white py-1 rounded hover:bg-blue-700"
           >
-            Save Template
+            {editingId ? 'Update Template' : 'Save Template'}
           </button>
         </form>
       )}
@@ -235,19 +299,31 @@ export default function BillLibrary({ userId, onTransactionAdded }: BillLibraryP
         {templates.map(t => (
           <div key={t.id} className="flex flex-col p-3 hover:bg-gray-50 rounded border border-transparent hover:border-gray-200 group transition">
             <div className="flex justify-between items-start mb-1">
-              <div>
+              <div 
+                className="cursor-pointer hover:text-blue-600"
+                onClick={() => startEditing(t)}
+              >
                 <div className="font-medium text-gray-800 text-sm">{t.name}</div>
                 <div className="text-xs text-gray-500">
                   ${t.default_amount.toFixed(2)} • {t.frequency}
                 </div>
               </div>
-              <button
-                onClick={() => deleteTemplate(t.id)}
-                className="text-gray-300 hover:text-red-500 px-1 opacity-0 group-hover:opacity-100 transition"
-                title="Delete Template"
-              >
-                &times;
-              </button>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => startEditing(t)}
+                  className="text-gray-300 hover:text-blue-500 px-1 opacity-0 group-hover:opacity-100 transition"
+                  title="Edit Template"
+                >
+                  ✎
+                </button>
+                <button
+                  onClick={() => deleteTemplate(t.id)}
+                  className="text-gray-300 hover:text-red-500 px-1 opacity-0 group-hover:opacity-100 transition"
+                  title="Delete Template"
+                >
+                  &times;
+                </button>
+              </div>
             </div>
             
             <div className="flex items-center justify-between mt-2 bg-white p-1 rounded border border-gray-100">
