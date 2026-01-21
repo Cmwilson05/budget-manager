@@ -62,12 +62,37 @@ function App() {
   }, [])
 
   // Helper to find account balance by name (case-insensitive partial match)
-  const getAccountBalance = (namePart: string): number => {
-    const account = accounts.find(a => a.name.toLowerCase().includes(namePart.toLowerCase()))
+  // Added isLiability param to be more specific and avoid issues when reordering
+  const getAccountBalance = (namePart: string, isLiability: boolean = false): number => {
+    // Try to find a match that also matches the liability status
+    let account = accounts.find(a => 
+      a.name.toLowerCase().includes(namePart.toLowerCase()) && 
+      a.is_liability === isLiability
+    )
+    
+    // Fallback to just name match if strict match fails (though for CCs we expect strict match)
+    if (!account) {
+      account = accounts.find(a => a.name.toLowerCase().includes(namePart.toLowerCase()))
+    }
+
     if (account) {
       return account.is_liability ? -Math.abs(account.current_balance) : account.current_balance
     }
     return 0
+  }
+
+  // Helper to find account ID by name (case-insensitive partial match)
+  const getAccountId = (namePart: string, isLiability: boolean = false): string | undefined => {
+    let account = accounts.find(a => 
+      a.name.toLowerCase().includes(namePart.toLowerCase()) && 
+      a.is_liability === isLiability
+    )
+    
+    if (!account) {
+      account = accounts.find(a => a.name.toLowerCase().includes(namePart.toLowerCase()))
+    }
+    
+    return account?.id
   }
 
   if (error) {
@@ -137,24 +162,27 @@ function App() {
               <div className="space-y-8">
                 <Workbench 
                   userId={session.user.id} 
-                  startingBalance={getAccountBalance('CMW')} 
+                  startingBalance={getAccountBalance('CMW', true)} 
                   refreshTrigger={refreshWorkbench}
                   title="Credit Card - CMW (3619)"
                   filterTag="cc_1"
+                  accountId={getAccountId('CMW', true)}
                 />
                 <Workbench 
                   userId={session.user.id} 
-                  startingBalance={getAccountBalance('JGW')} 
+                  startingBalance={getAccountBalance('JGW', true)} 
                   refreshTrigger={refreshWorkbench}
                   title="Credit Card - JGW (9299)"
                   filterTag="cc_2"
+                  accountId={getAccountId('JGW', true)}
                 />
                 <Workbench 
                   userId={session.user.id} 
-                  startingBalance={getAccountBalance('SAMS')} 
+                  startingBalance={getAccountBalance('SAMS', true)} 
                   refreshTrigger={refreshWorkbench}
                   title="Credit Card - SAMS (1261)"
                   filterTag="cc_3"
+                  accountId={getAccountId('SAMS', true)}
                 />
               </div>
             )}

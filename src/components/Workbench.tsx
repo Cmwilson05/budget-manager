@@ -35,6 +35,7 @@ interface WorkbenchProps {
   refreshTrigger?: number
   title?: string
   filterTag?: string
+  accountId?: string // New prop to link to a specific account
 }
 
 // Sortable Transaction Row
@@ -123,7 +124,7 @@ function SortableTransactionRow({
   )
 }
 
-export default function Workbench({ userId, startingBalance, refreshTrigger, title = "Forecasting Workbench", filterTag }: WorkbenchProps) {
+export default function Workbench({ userId, startingBalance, refreshTrigger, title = "Forecasting Workbench", filterTag, accountId }: WorkbenchProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   
