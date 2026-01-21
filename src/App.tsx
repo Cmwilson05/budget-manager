@@ -228,6 +228,12 @@ function App() {
               <BillSchedule
                 userId={session.user.id}
                 onTransactionAdded={() => setRefreshWorkbench(prev => prev + 1)}
+                workbenchOptions={[
+                  { title: 'Main Cash Flow' },
+                  { title: 'CMW (3619)', tag: 'cc_1' },
+                  { title: 'JGW (9299)', tag: 'cc_2' },
+                  { title: 'SAMS (1261)', tag: 'cc_3' },
+                ]}
               />
               <Notes userId={session.user.id} />
             </div>

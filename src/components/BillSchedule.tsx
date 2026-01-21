@@ -12,12 +12,18 @@ interface BillTemplate {
   last_advanced_at: string | null // New field
 }
 
+interface WorkbenchOption {
+  title: string
+  tag?: string
+}
+
 interface BillScheduleProps {
   userId: string
   onTransactionAdded: () => void
+  workbenchOptions?: WorkbenchOption[]
 }
 
-export default function BillSchedule({ userId, onTransactionAdded }: BillScheduleProps) {
+export default function BillSchedule({ userId, onTransactionAdded, workbenchOptions = [] }: BillScheduleProps) {
   const [templates, setTemplates] = useState<BillTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
@@ -29,6 +35,8 @@ export default function BillSchedule({ userId, onTransactionAdded }: BillSchedul
   const [newAmount, setNewAmount] = useState('')
   const [newFrequency, setNewFrequency] = useState<Frequency>('monthly')
   const [newDueDate, setNewDueDate] = useState('')
+
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchTemplates()
@@ -148,7 +156,7 @@ export default function BillSchedule({ userId, onTransactionAdded }: BillSchedul
     }
   }
 
-  const addToWorkbench = async (template: BillTemplate) => {
+  const addToWorkbench = async (template: BillTemplate, tag?: string) => {
     try {
       const amount = -Math.abs(template.default_amount)
       
@@ -161,7 +169,8 @@ export default function BillSchedule({ userId, onTransactionAdded }: BillSchedul
             amount: amount,
             status: 'planning',
             is_in_calc: true,
-            due_date: template.next_due_date || null
+            due_date: template.next_due_date || null,
+            tag: tag || null
           }
         ])
 
@@ -370,7 +379,7 @@ export default function BillSchedule({ userId, onTransactionAdded }: BillSchedul
                 </div>
               </div>
               
-              <div className="flex items-center gap-1 flex-shrink-0 hide-in-screenshot">
+              <div className="flex items-center gap-1 flex-shrink-0 hide-in-screenshot relative">
                 <button
                   onClick={() => advanceDate(t)}
                   className="text-xs bg-gray-100 hover:bg-blue-100 text-gray-600 hover:text-blue-600 px-2 py-1 rounded transition"
@@ -379,13 +388,48 @@ export default function BillSchedule({ userId, onTransactionAdded }: BillSchedul
                 >
                   💸
                 </button>
-                <button
-                  onClick={() => addToWorkbench(t)}
-                  className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 font-medium"
-                  title="Add to Workbench"
-                >
-                  Add
-                </button>
+                <div className="flex items-stretch rounded overflow-hidden border border-blue-200">
+                  <button
+                    onClick={() => addToWorkbench(t)}
+                    className="text-xs bg-blue-50 text-blue-600 px-2 py-1 hover:bg-blue-100 font-medium border-r border-blue-200"
+                    title="Add to Main Workbench"
+                  >
+                    Add
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpenMenuId(openMenuId === t.id ? null : t.id)
+                    }}
+                    className="text-[10px] bg-blue-50 text-blue-600 px-1 hover:bg-blue-100"
+                    title="Select Workbench"
+                  >
+                    ▼
+                  </button>
+                </div>
+
+                {openMenuId === t.id && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setOpenMenuId(null)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg z-20 min-w-[140px] py-1">
+                      {workbenchOptions.map((opt, i) => (
+                        <button
+                          key={i}
+                          onClick={() => {
+                            addToWorkbench(t, opt.tag)
+                            setOpenMenuId(null)
+                          }}
+                          className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 text-gray-700"
+                        >
+                          Add to {opt.title}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
                 
                 <div className="hidden group-hover:flex gap-1 ml-1 border-l pl-1 border-gray-200">
                   <button
