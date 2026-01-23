@@ -197,7 +197,12 @@ function SortableTransactionRow({
         </button>
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-        {transaction.due_date ? new Date(transaction.due_date).toLocaleDateString() : '-'}
+        {transaction.due_date ? (
+          (() => {
+            const [year, month, day] = transaction.due_date.split('-')
+            return `${parseInt(month)}/${parseInt(day)}/${year.slice(-2)}`
+          })()
+        ) : '-'}
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 truncate max-w-[120px] md:max-w-none">
         {transaction.description}
@@ -297,12 +302,17 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
         
         // Persist new order
         const updates = newOrder.map((t, index) => ({
-          id: t.id,
+          ...t,
+          user_id: userId,
           sort_order: index
         }))
 
-        updates.forEach(async (update) => {
-           await supabase.from('transactions').update({ sort_order: update.sort_order }).eq('id', update.id)
+        console.log('Updating all transactions sort order...', updates)
+        supabase.from('transactions').upsert(updates).then(({ error }) => {
+          if (error) {
+            console.error('Error updating sort order:', error)
+            fetchTransactions()
+          }
         })
 
         return newOrder
@@ -317,8 +327,8 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
     const amountVal = parseFloat(newAmount)
     const finalAmount = isIncome ? Math.abs(amountVal) : -Math.abs(amountVal)
 
-    // Get max sort order
-    const maxSort = transactions.length > 0 ? Math.max(...transactions.map(t => t.sort_order || 0)) : 0
+    // Get min sort order to append to top
+    const minSort = transactions.length > 0 ? Math.min(...transactions.map(t => t.sort_order || 0)) : 0
 
     try {
       const { data, error } = await supabase
@@ -331,7 +341,7 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
             status: 'planning',
             is_in_calc: true,
             due_date: newDate || null,
-            sort_order: maxSort + 1,
+            sort_order: minSort - 1,
             tag: filterTag || null // Save with the current tag (e.g., 'credit_card_1')
           }
         ])
@@ -340,7 +350,7 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
       if (error) throw error
 
       if (data) {
-        setTransactions([...transactions, data[0]])
+        setTransactions([data[0], ...transactions])
         setNewDesc('')
         setNewAmount('')
         setNewDate('')
@@ -383,6 +393,41 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
     }
   }
 
+  const sortByDate = async () => {
+    const sorted = [...transactions].sort((a, b) => {
+      if (!a.due_date && !b.due_date) return 0
+      if (!a.due_date) return -1
+      if (!b.due_date) return 1
+      return a.due_date.localeCompare(b.due_date)
+    })
+
+    // Optimistically update UI
+    setTransactions(sorted)
+
+    // Persist new order
+    try {
+      const updates = sorted.map((t, index) => ({
+        ...t,
+        user_id: userId, // Include user_id for RLS
+        sort_order: index,
+      }))
+
+      console.log('Upserting sorted transactions...', updates)
+      const { error } = await supabase
+        .from('transactions')
+        .upsert(updates)
+
+      if (error) {
+        console.error('Supabase upsert error:', error)
+        throw error
+      }
+      console.log('Successfully persisted sort order')
+    } catch (error) {
+      console.error('Error persisting sort order:', error)
+      fetchTransactions()
+    }
+  }
+
   const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
     // Optimistic update
     setTransactions(transactions.map(t => 
@@ -417,7 +462,16 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
   return (
     <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
       <div className="bg-gray-800 text-white p-6">
-        <h2 className="text-xl font-semibold mb-4">{title}</h2>
+        <div className="flex justify-between items-start mb-4">
+          <h2 className="text-xl font-semibold">{title}</h2>
+          <button 
+            onClick={sortByDate}
+            className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded border border-gray-600 transition-colors hide-in-screenshot"
+            title="Sort all items by date"
+          >
+            Sort by Date
+          </button>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           <div className="bg-gray-700 p-3 rounded-lg">
             <div className="text-xs text-gray-400 uppercase">Current</div>
