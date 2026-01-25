@@ -1,26 +1,34 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-// Log to console to help debug blank screen issues
-console.log('Supabase URL exists:', !!supabaseUrl)
-console.log('Supabase Key exists:', !!supabaseAnonKey)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  // Instead of throwing an error that crashes the app white, log it
-  console.error('Missing Supabase environment variables. Check your .env file.')
+  console.error(
+    'Missing Supabase environment variables. \n' +
+    'Please check your .env file and ensure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set.'
+  );
 }
 
-// Create client even if keys are missing to avoid immediate crash, 
-// but auth calls will fail gracefully or we can handle it in UI
+// We use a fallback to an empty string if keys are missing. 
+// The Supabase client will throw a descriptive error when a request is actually made,
+// which is often easier to debug than a silent failure with a placeholder URL.
 export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co', 
-  supabaseAnonKey || 'placeholder-key',
+  supabaseUrl || '', 
+  supabaseAnonKey || '',
   {
     auth: {
-      persistSession: true, // Ensure session persists
+      persistSession: true,
       autoRefreshToken: true,
     }
   }
 )
+
+// Temporary connection test to verify configuration
+supabase.auth.getSession().then(({ error }) => {
+  if (error) {
+    console.error('Supabase connection failed:', error.message)
+  } else {
+    console.log('Supabase connected successfully')
+  }
+})

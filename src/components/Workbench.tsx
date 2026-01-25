@@ -235,12 +235,15 @@ function SortableTransactionRow({
 export default function Workbench({ userId, startingBalance, refreshTrigger, title = "Forecasting Workbench", filterTag }: WorkbenchProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
-  
+
   // New Transaction State
   const [newDesc, setNewDesc] = useState('')
   const [newAmount, setNewAmount] = useState('')
   const [newDate, setNewDate] = useState('')
   const [isIncome, setIsIncome] = useState(false)
+
+  // Generate a unique storage key for this workbench instance
+  const storageKey = `workbench_content_${filterTag || 'main'}`
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -248,6 +251,32 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
       coordinateGetter: sortableKeyboardCoordinates,
     })
   )
+
+  // Load saved form state from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed.newDesc) setNewDesc(parsed.newDesc)
+        if (parsed.newAmount) setNewAmount(parsed.newAmount)
+        if (parsed.newDate) setNewDate(parsed.newDate)
+        if (parsed.isIncome !== undefined) setIsIncome(parsed.isIncome)
+      }
+    } catch (e) {
+      console.error('Failed to load workbench content from localStorage', e)
+    }
+  }, [storageKey])
+
+  // Save form state to localStorage whenever it changes (debounced)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const content = { newDesc, newAmount, newDate, isIncome }
+      localStorage.setItem(storageKey, JSON.stringify(content))
+    }, 300) // 300ms debounce
+
+    return () => clearTimeout(timeoutId)
+  }, [newDesc, newAmount, newDate, isIncome, storageKey])
 
   useEffect(() => {
     fetchTransactions()
@@ -355,6 +384,8 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
         setNewAmount('')
         setNewDate('')
         setIsIncome(false)
+        // Clear saved form state after successful submission
+        localStorage.removeItem(storageKey)
       }
     } catch (error) {
       console.error('Error adding transaction:', error)

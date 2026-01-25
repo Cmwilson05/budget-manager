@@ -23,18 +23,19 @@ interface BillScheduleProps {
   workbenchOptions?: WorkbenchOption[]
 }
 
-function BillRow({ 
-  template, 
-  onUpdate, 
-  onDelete, 
-  onAdvance, 
+function BillRow({
+  template,
+  onUpdate,
+  onDelete,
+  onAdvance,
   onAddToWorkbench,
   workbenchOptions,
   getFrequencyColor,
   formatDate,
-  formatLastAdvanced
-}: { 
-  template: BillTemplate, 
+  formatLastAdvanced,
+  isDueSoon
+}: {
+  template: BillTemplate,
   onUpdate: (id: string, updates: Partial<BillTemplate>) => Promise<void>,
   onDelete: (id: string) => Promise<void>,
   onAdvance: (template: BillTemplate) => Promise<void>,
@@ -42,7 +43,8 @@ function BillRow({
   workbenchOptions: WorkbenchOption[],
   getFrequencyColor: (freq: Frequency) => string,
   formatDate: (date: string | null) => string,
-  formatLastAdvanced: (date: string | null) => string | null
+  formatLastAdvanced: (date: string | null) => string | null,
+  isDueSoon: boolean
 }) {
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState(template.name)
@@ -116,7 +118,7 @@ function BillRow({
   }
 
   return (
-    <div className="p-2 hover:bg-gray-50 rounded border border-transparent hover:border-gray-200 group transition">
+    <div className={`p-2 hover:bg-gray-50 rounded border group transition ${isDueSoon ? 'bg-yellow-50 border-l-4 border-l-amber-400 border-t-transparent border-r-transparent border-b-transparent' : 'border-transparent hover:border-gray-200'}`}>
       <div className="flex justify-between items-center">
         <div 
           className="cursor-pointer hover:text-blue-600 flex-1 min-w-0 pr-2"
@@ -219,7 +221,7 @@ export default function BillSchedule({ userId, onTransactionAdded, workbenchOpti
   const [templates, setTemplates] = useState<BillTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
-  const [showAnnual, setShowAnnual] = useState(true)
+  const [showAnnual, setShowAnnual] = useState(false)
 
   // Form State
   const [newName, setNewName] = useState('')
@@ -439,7 +441,26 @@ export default function BillSchedule({ userId, onTransactionAdded, workbenchOpti
     }
   }
 
+  // Check if a bill is due within the next 3 days
+  const isDueSoon = (dateString: string | null): boolean => {
+    if (!dateString) return false
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const dueDate = new Date(dateString + 'T00:00:00')
+    const diffTime = dueDate.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+    return diffDays >= 0 && diffDays <= 3
+  }
+
   const filteredTemplates = templates.filter(t => showAnnual || t.frequency !== 'annually')
+
+  // Calculate total monthly exposure (excludes annual bills)
+  const totalMonthly = filteredTemplates
+    .filter(t => t.frequency !== 'annually')
+    .reduce((sum, t) => sum + (t.default_amount || 0), 0)
 
   if (loading) return <div className="text-gray-500 text-sm">Loading schedule...</div>
 
@@ -530,6 +551,7 @@ export default function BillSchedule({ userId, onTransactionAdded, workbenchOpti
             getFrequencyColor={getFrequencyColor}
             formatDate={formatDate}
             formatLastAdvanced={formatLastAdvanced}
+            isDueSoon={isDueSoon(t.next_due_date)}
           />
         ))}
         {filteredTemplates.length === 0 && !isAdding && (
@@ -538,6 +560,14 @@ export default function BillSchedule({ userId, onTransactionAdded, workbenchOpti
           </p>
         )}
       </div>
+
+      {filteredTemplates.length > 0 && (
+        <div className="mt-3 pt-2 border-t border-gray-200">
+          <div className="text-right text-sm text-gray-600 font-semibold">
+            Total Monthly Fixed: ${totalMonthly.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

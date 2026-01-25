@@ -438,7 +438,12 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
   return (
     <div className="mb-0">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-gray-800">Accounts</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-semibold text-gray-800">Accounts</h2>
+          <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm font-medium">
+            Total: ${totalAssets.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
         <div className="flex gap-2 hide-in-screenshot">
           <button
             onClick={() => {
