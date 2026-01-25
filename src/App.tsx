@@ -4,7 +4,7 @@ import type { Session } from '@supabase/supabase-js'
 import Auth from './components/Auth'
 import Accounts from './components/Accounts'
 import Workbench from './components/Workbench'
-import BillSchedule from './components/BillSchedule'
+import BillSchedule, { type BillTemplate } from './components/BillSchedule'
 import Notes from './components/Notes'
 
 // Define Account interface here or import it
@@ -27,6 +27,9 @@ function App() {
   
   // State to hold account balances
   const [accounts, setAccounts] = useState<Account[]>([])
+
+  // State to hold bill templates
+  const [bills, setBills] = useState<BillTemplate[]>([])
 
   useEffect(() => {
     console.log('App mounted, checking session...')
@@ -193,11 +196,13 @@ function App() {
               </button>
             </div>
 
-            <Workbench 
-              userId={session.user.id} 
+            <Workbench
+              userId={session.user.id}
               startingBalance={currentNetWorth}
               refreshTrigger={refreshWorkbench}
               title="Main Cash Flow"
+              accounts={accounts}
+              bills={bills}
             />
 
             {showCreditCardWorkbench && (
@@ -236,6 +241,7 @@ function App() {
               <BillSchedule
                 userId={session.user.id}
                 onTransactionAdded={() => setRefreshWorkbench(prev => prev + 1)}
+                onBillsUpdate={setBills}
                 workbenchOptions={[
                   { title: 'Main Cash Flow' },
                   { title: getAccountFullName('CMW', 'CMW (3619)'), tag: 'cc_1' },

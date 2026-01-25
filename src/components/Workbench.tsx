@@ -29,13 +29,29 @@ interface Transaction {
   tag?: string
 }
 
+interface Account {
+  id: string
+  name: string
+  current_balance: number
+  is_liability: boolean
+}
+
+interface BillTemplate {
+  id: string
+  name: string
+  default_amount: number
+  frequency: 'bi-weekly' | 'monthly' | 'quarterly' | 'annually'
+}
+
 interface WorkbenchProps {
   userId: string
   startingBalance: number
   refreshTrigger?: number
   title?: string
   filterTag?: string
-  accountId?: string // New prop to link to a specific account
+  accountId?: string
+  accounts?: Account[]
+  bills?: BillTemplate[]
 }
 
 // Sortable Transaction Row
@@ -232,14 +248,14 @@ function SortableTransactionRow({
   )
 }
 
-export default function Workbench({ userId, startingBalance, refreshTrigger, title = "Forecasting Workbench", filterTag }: WorkbenchProps) {
+export default function Workbench({ userId, startingBalance, refreshTrigger, title = "Forecasting Workbench", filterTag, accounts = [], bills = [] }: WorkbenchProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
 
   // New Transaction State
   const [newDesc, setNewDesc] = useState('')
   const [newAmount, setNewAmount] = useState('')
-  const [newDate, setNewDate] = useState('')
+  const [newDate, setNewDate] = useState(() => new Date().toISOString().split('T')[0])
   const [isIncome, setIsIncome] = useState(false)
 
   // Generate a unique storage key for this workbench instance
@@ -382,7 +398,7 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
         setTransactions([data[0], ...transactions])
         setNewDesc('')
         setNewAmount('')
-        setNewDate('')
+        setNewDate(new Date().toISOString().split('T')[0])
         setIsIncome(false)
         // Clear saved form state after successful submission
         localStorage.removeItem(storageKey)
@@ -485,8 +501,21 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
   const plannedExpenses = activeTransactions
     .filter(t => t.amount < 0)
     .reduce((sum, t) => sum + t.amount, 0)
-  
+
   const projectedBalance = startingBalance + plannedIncome + plannedExpenses
+
+  // Auto-Budget calculations
+  const totalCash = accounts
+    .filter(a => !a.is_liability)
+    .reduce((sum, a) => sum + a.current_balance, 0)
+
+  const fixedMonthly = bills
+    .filter(b => b.frequency !== 'annually')
+    .reduce((sum, b) => sum + b.default_amount, 0)
+
+  const safeToSpend = totalCash - fixedMonthly
+
+  const [showAutoBudget, setShowAutoBudget] = useState(false)
 
   if (loading) return <div className="text-gray-500">Loading workbench...</div>
 
@@ -495,14 +524,48 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
       <div className="bg-gray-800 text-white p-6">
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-xl font-semibold">{title}</h2>
-          <button 
-            onClick={sortByDate}
-            className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded border border-gray-600 transition-colors hide-in-screenshot"
-            title="Sort all items by date"
-          >
-            Sort by Date
-          </button>
+          <div className="flex gap-2 hide-in-screenshot">
+            {accounts.length > 0 && !filterTag && (
+              <button
+                onClick={() => setShowAutoBudget(!showAutoBudget)}
+                className={`text-xs px-2 py-1 rounded border transition-colors ${
+                  showAutoBudget
+                    ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-500'
+                    : 'bg-gray-700 hover:bg-gray-600 text-gray-300 border-gray-600'
+                }`}
+                title="Show Auto-Budget Snapshot"
+              >
+                Auto-Budget
+              </button>
+            )}
+            <button
+              onClick={sortByDate}
+              className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded border border-gray-600 transition-colors"
+              title="Sort all items by date"
+            >
+              Sort by Date
+            </button>
+          </div>
         </div>
+
+        {showAutoBudget && (
+          <div className="mb-4 bg-gray-900 rounded-lg p-4 border border-gray-600 font-mono text-sm">
+            <div className="text-gray-400 mb-2">--- SNAPSHOT {new Date().toLocaleDateString()} ---</div>
+            <div className="flex justify-between text-green-400">
+              <span>Total Cash:</span>
+              <span>+${totalCash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="flex justify-between text-red-400">
+              <span>Fixed Monthly:</span>
+              <span>-${fixedMonthly.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="border-t border-gray-600 my-2"></div>
+            <div className={`flex justify-between font-bold ${safeToSpend >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+              <span>Safe to Spend:</span>
+              <span>{safeToSpend >= 0 ? '+' : ''}${safeToSpend.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
           <div className="bg-gray-700 p-3 rounded-lg">
             <div className="text-xs text-gray-400 uppercase">Current</div>

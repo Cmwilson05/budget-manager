@@ -47,7 +47,7 @@ function SortableAccountRow({
 }) {
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState(account.name)
-  const [editBalance, setEditBalance] = useState(account.current_balance.toString())
+  const [editBalance, setEditBalance] = useState(account.current_balance.toFixed(2))
   const [editIsLiability, setEditIsLiability] = useState(account.is_liability)
 
   const {
@@ -116,6 +116,10 @@ function SortableAccountRow({
             step="0.01"
             value={editBalance}
             onChange={(e) => setEditBalance(e.target.value)}
+            onBlur={(e) => {
+              const val = parseFloat(e.target.value)
+              if (!isNaN(val)) setEditBalance(val.toFixed(2))
+            }}
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
             className="px-2 py-1 border rounded text-sm w-24 text-right focus:ring-2 focus:ring-blue-500 outline-none font-mono"
           />
@@ -141,7 +145,7 @@ function SortableAccountRow({
           <button
             onClick={() => {
               setEditName(account.name)
-              setEditBalance(account.current_balance.toString())
+              setEditBalance(account.current_balance.toFixed(2))
               setEditIsLiability(account.is_liability)
               setIsEditing(false)
             }}
@@ -478,6 +482,10 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
                 step="0.01"
                 value={balance}
                 onChange={(e) => setBalance(e.target.value)}
+                onBlur={(e) => {
+                  const val = parseFloat(e.target.value)
+                  if (!isNaN(val)) setBalance(val.toFixed(2))
+                }}
                 className="w-full px-3 py-2 border rounded text-sm"
                 placeholder="0.00"
                 required

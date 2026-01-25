@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 
-type Frequency = 'bi-weekly' | 'monthly' | 'quarterly' | 'annually'
+export type Frequency = 'bi-weekly' | 'monthly' | 'quarterly' | 'annually'
 
-interface BillTemplate {
+export interface BillTemplate {
   id: string
   name: string
   default_amount: number
   frequency: Frequency
   next_due_date: string | null
-  last_advanced_at: string | null // New field
+  last_advanced_at: string | null
 }
 
 interface WorkbenchOption {
@@ -21,6 +21,7 @@ interface BillScheduleProps {
   userId: string
   onTransactionAdded: () => void
   workbenchOptions?: WorkbenchOption[]
+  onBillsUpdate?: (bills: BillTemplate[]) => void
 }
 
 function BillRow({
@@ -217,11 +218,16 @@ function BillRow({
   )
 }
 
-export default function BillSchedule({ userId, onTransactionAdded, workbenchOptions = [] }: BillScheduleProps) {
+export default function BillSchedule({ userId, onTransactionAdded, workbenchOptions = [], onBillsUpdate }: BillScheduleProps) {
   const [templates, setTemplates] = useState<BillTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
   const [showAnnual, setShowAnnual] = useState(false)
+
+  // Sort State
+  type SortField = 'name' | 'amount' | 'due_date' | 'frequency'
+  const [sortField, setSortField] = useState<SortField>('due_date')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   // Form State
   const [newName, setNewName] = useState('')
@@ -232,6 +238,13 @@ export default function BillSchedule({ userId, onTransactionAdded, workbenchOpti
   useEffect(() => {
     fetchTemplates()
   }, [])
+
+  // Notify parent when templates change
+  useEffect(() => {
+    if (onBillsUpdate) {
+      onBillsUpdate(templates)
+    }
+  }, [templates, onBillsUpdate])
 
   const fetchTemplates = async () => {
     try {
@@ -457,6 +470,38 @@ export default function BillSchedule({ userId, onTransactionAdded, workbenchOpti
 
   const filteredTemplates = templates.filter(t => showAnnual || t.frequency !== 'annually')
 
+  // Handle sort toggle
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortOrder('asc')
+    }
+  }
+
+  // Sort filtered templates
+  const sortedTemplates = [...filteredTemplates].sort((a, b) => {
+    const modifier = sortOrder === 'asc' ? 1 : -1
+
+    switch (sortField) {
+      case 'name':
+        return modifier * a.name.localeCompare(b.name)
+      case 'amount':
+        return modifier * (a.default_amount - b.default_amount)
+      case 'due_date':
+        if (!a.next_due_date && !b.next_due_date) return 0
+        if (!a.next_due_date) return 1
+        if (!b.next_due_date) return -1
+        return modifier * a.next_due_date.localeCompare(b.next_due_date)
+      case 'frequency':
+        const freqOrder = { 'bi-weekly': 0, 'monthly': 1, 'quarterly': 2, 'annually': 3 }
+        return modifier * (freqOrder[a.frequency] - freqOrder[b.frequency])
+      default:
+        return 0
+    }
+  })
+
   // Calculate total monthly exposure (excludes annual bills)
   const totalMonthly = filteredTemplates
     .filter(t => t.frequency !== 'annually')
@@ -538,8 +583,36 @@ export default function BillSchedule({ userId, onTransactionAdded, workbenchOpti
         </form>
       )}
 
+      {/* Sort Headers */}
+      <div className="flex gap-1 mb-2 text-[10px] text-gray-500">
+        <button
+          onClick={() => handleSort('name')}
+          className={`px-2 py-0.5 rounded transition ${sortField === 'name' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+        >
+          Name {sortField === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+        </button>
+        <button
+          onClick={() => handleSort('amount')}
+          className={`px-2 py-0.5 rounded transition ${sortField === 'amount' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+        >
+          Amount {sortField === 'amount' && (sortOrder === 'asc' ? '↑' : '↓')}
+        </button>
+        <button
+          onClick={() => handleSort('due_date')}
+          className={`px-2 py-0.5 rounded transition ${sortField === 'due_date' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+        >
+          Due {sortField === 'due_date' && (sortOrder === 'asc' ? '↑' : '↓')}
+        </button>
+        <button
+          onClick={() => handleSort('frequency')}
+          className={`px-2 py-0.5 rounded transition ${sortField === 'frequency' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+        >
+          Freq {sortField === 'frequency' && (sortOrder === 'asc' ? '↑' : '↓')}
+        </button>
+      </div>
+
       <div className="space-y-1">
-        {filteredTemplates.map(t => (
+        {sortedTemplates.map(t => (
           <BillRow
             key={t.id}
             template={t}
@@ -554,14 +627,14 @@ export default function BillSchedule({ userId, onTransactionAdded, workbenchOpti
             isDueSoon={isDueSoon(t.next_due_date)}
           />
         ))}
-        {filteredTemplates.length === 0 && !isAdding && (
+        {sortedTemplates.length === 0 && !isAdding && (
           <p className="text-xs text-gray-400 text-center py-4">
             No templates yet.
           </p>
         )}
       </div>
 
-      {filteredTemplates.length > 0 && (
+      {sortedTemplates.length > 0 && (
         <div className="mt-3 pt-2 border-t border-gray-200">
           <div className="text-right text-sm text-gray-600 font-semibold">
             Total Monthly Fixed: ${totalMonthly.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
