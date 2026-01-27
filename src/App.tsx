@@ -6,6 +6,8 @@ import Accounts from './components/Accounts'
 import Workbench from './components/Workbench'
 import BillSchedule, { type BillTemplate } from './components/BillSchedule'
 import Notes from './components/Notes'
+import Captures from './components/Captures'
+import { getAccountColor } from './lib/accountColors'
 
 // Define Account interface here or import it
 interface Account {
@@ -14,6 +16,7 @@ interface Account {
   current_balance: number
   is_liability: boolean
   sort_order: number
+  color_index?: number
 }
 
 function App() {
@@ -174,7 +177,7 @@ function App() {
         </div>
         
         {/* Main Layout: Grid with Accounts/Workbench on Left, Bill Schedule on Right */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8 hide-in-screenshot">
           {/* Main Content Area (Takes up 2/3 space on large screens) */}
           <div className="lg:col-span-2 space-y-8">
             <Accounts 
@@ -236,7 +239,7 @@ function App() {
           </div>
 
           {/* Bill Schedule & Notes (Takes up 1/3 space on large screens) */}
-          <div className="lg:col-span-1 space-y-8">
+          <div className="lg:col-span-1 space-y-8 hide-in-screenshot">
             <div className="lg:sticky lg:top-8 space-y-8 h-fit">
               <BillSchedule
                 userId={session.user.id}
@@ -252,6 +255,42 @@ function App() {
               <Notes userId={session.user.id} />
             </div>
           </div>
+        </div>
+
+        {/* Screenshot Mode: Accounts Summary */}
+        {screenshotMode && accounts.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Account Balances</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {accounts.map((account) => {
+                // Debug: log color_index
+                console.log(`Account ${account.name}: color_index = ${account.color_index}`)
+                // Liabilities are always red
+                const color = account.is_liability
+                  ? { bg: 'bg-red-900', border: 'border-red-500', shadow: 'shadow-red-500/30', label: 'text-red-300' }
+                  : getAccountColor(account.color_index ?? 0)
+                return (
+                  <div
+                    key={account.id}
+                    className={`p-4 rounded-2xl border shadow-md ${color.bg} ${color.border} ${color.shadow}`}
+                  >
+                    <div className={`text-xs mb-1 ${color.label}`}>
+                      {account.is_liability ? 'Liability' : 'Asset'}
+                    </div>
+                    <div className="text-white font-medium text-sm mb-1 truncate">{account.name}</div>
+                    <div className="text-2xl font-mono font-bold text-white">
+                      ${account.current_balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Captures Section */}
+        <div className="mt-8">
+          <Captures userId={session.user.id} accounts={accounts} />
         </div>
       </div>
     </div>

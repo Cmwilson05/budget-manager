@@ -4,6 +4,16 @@
   .screenshot-mode .hide-in-screenshot {
     display: none !important;
   }
+
+  /* Show elements only in screenshot mode */
+  .screenshot-mode .screenshot-mode-show {
+    display: block !important;
+  }
+
+  /* Make captures section take full width in screenshot mode */
+  .screenshot-mode .captures-section {
+    max-width: 100%;
+  }
 }
 
 @media print {

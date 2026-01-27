@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { accountColors } from '../lib/accountColors'
 import {
   DndContext,
   closestCenter,
@@ -24,6 +25,7 @@ interface Account {
   current_balance: number
   is_liability: boolean
   sort_order: number
+  color_index?: number
   include_in_workbench?: boolean // Computed field
 }
 
@@ -49,6 +51,7 @@ function SortableAccountRow({
   const [editName, setEditName] = useState(account.name)
   const [editBalance, setEditBalance] = useState(account.current_balance.toFixed(2))
   const [editIsLiability, setEditIsLiability] = useState(account.is_liability)
+  const [editColorIndex, setEditColorIndex] = useState(account.color_index ?? 0)
 
   const {
     attributes,
@@ -73,7 +76,8 @@ function SortableAccountRow({
     onUpdate(account.id, {
       name: editName,
       current_balance: balance,
-      is_liability: editIsLiability
+      is_liability: editIsLiability,
+      color_index: editColorIndex
     })
     setIsEditing(false)
   }
@@ -134,6 +138,28 @@ function SortableAccountRow({
             />
             <span className="text-xs font-semibold">{editIsLiability ? 'Liability' : 'Asset'}</span>
           </label>
+          {/* Color Picker - only for assets (liabilities are always red) */}
+          {!editIsLiability && (
+            <div className="flex gap-1 mt-2 flex-wrap justify-end">
+              {accountColors
+                .filter((_, idx) => idx !== 4) // Skip red/rose colors for non-liabilities
+                .map((color, filteredIdx) => {
+                  // Adjust index back to original (skip index 4)
+                  const originalIdx = filteredIdx >= 4 ? filteredIdx + 1 : filteredIdx
+                  return (
+                    <button
+                      key={originalIdx}
+                      type="button"
+                      onClick={() => setEditColorIndex(originalIdx)}
+                      className={`w-5 h-5 rounded-full ${color.bg} ${color.border} border-2 ${
+                        editColorIndex === originalIdx ? 'ring-2 ring-offset-1 ring-gray-400' : ''
+                      }`}
+                      title={`Color ${originalIdx + 1}`}
+                    />
+                  )
+                })}
+            </div>
+          )}
         </td>
         <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium space-x-2">
           <button
@@ -147,6 +173,7 @@ function SortableAccountRow({
               setEditName(account.name)
               setEditBalance(account.current_balance.toFixed(2))
               setEditIsLiability(account.is_liability)
+              setEditColorIndex(account.color_index ?? 0)
               setIsEditing(false)
             }}
             className="text-gray-600 hover:text-gray-900"
@@ -228,12 +255,16 @@ function SortableAccountRow({
   )
 }
 
+type SortField = 'name' | 'balance' | 'type'
+
 export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: AccountsProps) {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [excludedIds, setExcludedIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [isAdding, setIsAdding] = useState(false)
-  
+  const [sortField, setSortField] = useState<SortField>('name')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+
   // Form state
   const [name, setName] = useState('')
   const [balance, setBalance] = useState('')
@@ -427,6 +458,46 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
     }
   }
 
+  const handleSort = async (field: SortField) => {
+    const newSortOrder = sortField === field ? (sortOrder === 'asc' ? 'desc' : 'asc') : 'asc'
+    setSortField(field)
+    setSortOrder(newSortOrder)
+
+    const modifier = newSortOrder === 'asc' ? 1 : -1
+
+    const sorted = [...accounts].sort((a, b) => {
+      switch (field) {
+        case 'name':
+          return modifier * a.name.localeCompare(b.name)
+        case 'balance':
+          return modifier * (a.current_balance - b.current_balance)
+        case 'type':
+          // Assets first (false = 0), then liabilities (true = 1)
+          return modifier * (Number(a.is_liability) - Number(b.is_liability))
+        default:
+          return 0
+      }
+    })
+
+    // Optimistically update UI
+    setAccounts(sorted)
+
+    // Persist new order
+    try {
+      const updates = sorted.map((acc, index) => ({
+        id: acc.id,
+        sort_order: index
+      }))
+
+      for (const update of updates) {
+        await supabase.from('accounts').update({ sort_order: update.sort_order }).eq('id', update.id)
+      }
+    } catch (error) {
+      console.error('Error persisting sort order:', error)
+      fetchAccounts()
+    }
+  }
+
   const totalAssets = accounts
     .filter(a => !a.is_liability)
     .reduce((sum, a) => sum + a.current_balance, 0)
@@ -448,7 +519,27 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
             Total: ${totalAssets.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
-        <div className="flex gap-2 hide-in-screenshot">
+        <div className="flex gap-2 items-center hide-in-screenshot">
+          <div className="flex gap-1 text-[10px]">
+            <button
+              onClick={() => handleSort('name')}
+              className={`px-2 py-0.5 rounded transition ${sortField === 'name' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100 text-gray-500'}`}
+            >
+              Name {sortField === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+            </button>
+            <button
+              onClick={() => handleSort('balance')}
+              className={`px-2 py-0.5 rounded transition ${sortField === 'balance' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100 text-gray-500'}`}
+            >
+              Amount {sortField === 'balance' && (sortOrder === 'asc' ? '↑' : '↓')}
+            </button>
+            <button
+              onClick={() => handleSort('type')}
+              className={`px-2 py-0.5 rounded transition ${sortField === 'type' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100 text-gray-500'}`}
+            >
+              Type {sortField === 'type' && (sortOrder === 'asc' ? '↑' : '↓')}
+            </button>
+          </div>
           <button
             onClick={() => {
               resetForm()

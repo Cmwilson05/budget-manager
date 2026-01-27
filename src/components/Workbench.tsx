@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { triggerCapture } from './Captures'
+import { getAccountColor } from '../lib/accountColors'
 import {
   DndContext,
   closestCenter,
@@ -34,6 +36,7 @@ interface Account {
   name: string
   current_balance: number
   is_liability: boolean
+  color_index?: number
 }
 
 interface BillTemplate {
@@ -55,16 +58,18 @@ interface WorkbenchProps {
 }
 
 // Sortable Transaction Row
-function SortableTransactionRow({ 
-  transaction, 
-  onToggleCalc, 
+function SortableTransactionRow({
+  transaction,
+  onToggleCalc,
   onDelete,
-  onUpdate
-}: { 
-  transaction: Transaction, 
-  onToggleCalc: (id: string, current: boolean) => void, 
+  onUpdate,
+  onDuplicate
+}: {
+  transaction: Transaction,
+  onToggleCalc: (id: string, current: boolean) => void,
   onDelete: (id: string) => void,
-  onUpdate: (id: string, updates: Partial<Transaction>) => void
+  onUpdate: (id: string, updates: Partial<Transaction>) => void,
+  onDuplicate: (id: string) => void
 }) {
   const [isEditing, setIsEditing] = useState(false)
   const [editDesc, setEditDesc] = useState(transaction.description)
@@ -237,6 +242,16 @@ function SortableTransactionRow({
             Edit
           </button>
           <button
+            onClick={() => onDuplicate(transaction.id)}
+            className="text-gray-400 hover:text-gray-600"
+            title="Duplicate"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+          <button
             onClick={() => onDelete(transaction.id)}
             className="text-red-400 hover:text-red-600"
           >
@@ -248,9 +263,13 @@ function SortableTransactionRow({
   )
 }
 
+type SortField = 'description' | 'amount' | 'due_date'
+
 export default function Workbench({ userId, startingBalance, refreshTrigger, title = "Forecasting Workbench", filterTag, accounts = [], bills = [] }: WorkbenchProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const [sortField, setSortField] = useState<SortField>('due_date')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 
   // New Transaction State
   const [newDesc, setNewDesc] = useState('')
@@ -409,7 +428,7 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
   }
 
   const toggleCalc = async (id: string, currentVal: boolean) => {
-    setTransactions(transactions.map(t => 
+    setTransactions(transactions.map(t =>
       t.id === id ? { ...t, is_in_calc: !currentVal } : t
     ))
 
@@ -422,6 +441,30 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
       if (error) throw error
     } catch (error) {
       console.error('Error updating transaction:', error)
+      fetchTransactions()
+    }
+  }
+
+  const toggleAllCalc = async () => {
+    if (transactions.length === 0) return
+
+    // If any are on, turn all off. Otherwise turn all on.
+    const anyOn = transactions.some(t => t.is_in_calc)
+    const newValue = !anyOn
+
+    // Optimistic update
+    setTransactions(transactions.map(t => ({ ...t, is_in_calc: newValue })))
+
+    try {
+      const ids = transactions.map(t => t.id)
+      const { error } = await supabase
+        .from('transactions')
+        .update({ is_in_calc: newValue })
+        .in('id', ids)
+
+      if (error) throw error
+    } catch (error) {
+      console.error('Error toggling all transactions:', error)
       fetchTransactions()
     }
   }
@@ -440,12 +483,71 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
     }
   }
 
-  const sortByDate = async () => {
+  const duplicateTransaction = async (id: string) => {
+    const originalIndex = transactions.findIndex(t => t.id === id)
+    if (originalIndex === -1) return
+
+    const transactionToDuplicate = transactions[originalIndex]
+
+    // Calculate sort_order to place duplicate right after original
+    const currentSort = transactionToDuplicate.sort_order || 0
+    const nextSort = originalIndex < transactions.length - 1
+      ? (transactions[originalIndex + 1].sort_order || 0)
+      : currentSort + 2
+    const newSortOrder = (currentSort + nextSort) / 2
+
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert([
+          {
+            user_id: userId,
+            description: transactionToDuplicate.description,
+            amount: transactionToDuplicate.amount,
+            status: transactionToDuplicate.status,
+            is_in_calc: transactionToDuplicate.is_in_calc,
+            due_date: transactionToDuplicate.due_date || null,
+            sort_order: newSortOrder,
+            tag: transactionToDuplicate.tag || null
+          }
+        ])
+        .select()
+
+      if (error) throw error
+
+      if (data) {
+        // Insert the duplicate right after the original in the list
+        const newTransactions = [...transactions]
+        newTransactions.splice(originalIndex + 1, 0, data[0])
+        setTransactions(newTransactions)
+      }
+    } catch (error) {
+      console.error('Error duplicating transaction:', error)
+      fetchTransactions()
+    }
+  }
+
+  const handleSort = async (field: SortField) => {
+    const newSortOrder = sortField === field ? (sortOrder === 'asc' ? 'desc' : 'asc') : 'asc'
+    setSortField(field)
+    setSortOrder(newSortOrder)
+
+    const modifier = newSortOrder === 'asc' ? 1 : -1
+
     const sorted = [...transactions].sort((a, b) => {
-      if (!a.due_date && !b.due_date) return 0
-      if (!a.due_date) return -1
-      if (!b.due_date) return 1
-      return a.due_date.localeCompare(b.due_date)
+      switch (field) {
+        case 'description':
+          return modifier * a.description.localeCompare(b.description)
+        case 'amount':
+          return modifier * (a.amount - b.amount)
+        case 'due_date':
+          if (!a.due_date && !b.due_date) return 0
+          if (!a.due_date) return 1
+          if (!b.due_date) return -1
+          return modifier * a.due_date.localeCompare(b.due_date)
+        default:
+          return 0
+      }
     })
 
     // Optimistically update UI
@@ -455,20 +557,15 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
     try {
       const updates = sorted.map((t, index) => ({
         ...t,
-        user_id: userId, // Include user_id for RLS
+        user_id: userId,
         sort_order: index,
       }))
 
-      console.log('Upserting sorted transactions...', updates)
       const { error } = await supabase
         .from('transactions')
         .upsert(updates)
 
-      if (error) {
-        console.error('Supabase upsert error:', error)
-        throw error
-      }
-      console.log('Successfully persisted sort order')
+      if (error) throw error
     } catch (error) {
       console.error('Error persisting sort order:', error)
       fetchTransactions()
@@ -523,7 +620,39 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
     <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
       <div className="bg-gray-800 text-white p-6">
         <div className="flex justify-between items-start mb-4">
-          <h2 className="text-xl font-semibold">{title}</h2>
+          <div>
+            <h2 className="text-xl font-semibold">{title}</h2>
+            {/* Selected accounts indicator - only for main workbench */}
+            {!filterTag && accounts.length > 0 && (() => {
+              try {
+                const excludedIds = JSON.parse(localStorage.getItem('budget-manager-excluded-accounts') || '[]')
+                const selectedAccounts = accounts.filter(a => !excludedIds.includes(a.id))
+                if (selectedAccounts.length > 0) {
+                  return (
+                    <div className="flex flex-wrap items-center gap-1 mt-2">
+                      <span className="text-[10px] text-gray-400 mr-1">Accounts Selected:</span>
+                      {selectedAccounts.map(account => {
+                        const color = account.is_liability
+                          ? { bg: 'bg-red-600', border: 'border-red-400' }
+                          : getAccountColor(account.color_index ?? 0)
+                        return (
+                          <span
+                            key={account.id}
+                            className={`text-[10px] px-2 py-0.5 rounded-full ${color.bg} ${color.border} border text-white`}
+                          >
+                            {account.name}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  )
+                }
+              } catch (e) {
+                console.error('Error reading excluded accounts', e)
+              }
+              return null
+            })()}
+          </div>
           <div className="flex gap-2 hide-in-screenshot">
             {accounts.length > 0 && !filterTag && (
               <button
@@ -538,13 +667,26 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
                 Auto-Budget
               </button>
             )}
-            <button
-              onClick={sortByDate}
-              className="text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded border border-gray-600 transition-colors"
-              title="Sort all items by date"
-            >
-              Sort by Date
-            </button>
+            <div className="flex gap-1 text-[10px]">
+              <button
+                onClick={() => handleSort('description')}
+                className={`px-2 py-0.5 rounded transition ${sortField === 'description' ? 'bg-blue-500 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
+              >
+                Name {sortField === 'description' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </button>
+              <button
+                onClick={() => handleSort('amount')}
+                className={`px-2 py-0.5 rounded transition ${sortField === 'amount' ? 'bg-blue-500 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
+              >
+                Amount {sortField === 'amount' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </button>
+              <button
+                onClick={() => handleSort('due_date')}
+                className={`px-2 py-0.5 rounded transition ${sortField === 'due_date' ? 'bg-blue-500 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'}`}
+              >
+                Due {sortField === 'due_date' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -579,9 +721,34 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
             <div className="text-xs text-gray-400 uppercase">Expenses</div>
             <div className="text-xl font-mono font-bold text-red-400">-${Math.abs(plannedExpenses).toFixed(2)}</div>
           </div>
-          <div className="bg-blue-900 p-3 rounded-lg border border-blue-500 shadow-blue-500/50 shadow-sm">
+          <div className="bg-blue-900 p-3 rounded-lg border border-blue-500 shadow-blue-500/50 shadow-sm relative group">
             <div className="text-xs text-blue-200 uppercase font-bold">Projected</div>
             <div className="text-2xl font-mono font-bold text-white">${projectedBalance.toFixed(2)}</div>
+            <button
+              onClick={() => {
+                // Get visible account names for the capture note
+                let captureNote = title
+                if (!filterTag && accounts.length > 0) {
+                  try {
+                    const excludedIds = JSON.parse(localStorage.getItem('budget-manager-excluded-accounts') || '[]')
+                    const visibleAccounts = accounts.filter(a => !excludedIds.includes(a.id))
+                    if (visibleAccounts.length > 0) {
+                      captureNote = visibleAccounts.map(a => a.name).join(', ')
+                    }
+                  } catch (e) {
+                    console.error('Error reading excluded accounts', e)
+                  }
+                }
+                triggerCapture(projectedBalance, captureNote)
+              }}
+              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity text-blue-300 hover:text-white p-1 hide-in-screenshot"
+              title="Capture this projection"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -651,7 +818,26 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">Calc</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-2">
+                    <span>Calc</span>
+                    <button
+                      onClick={toggleAllCalc}
+                      className={`w-5 h-5 rounded border transition-colors flex items-center justify-center hide-in-screenshot ${
+                        transactions.length > 0 && transactions.every(t => t.is_in_calc)
+                          ? 'bg-blue-600 border-blue-600 text-white'
+                          : transactions.some(t => t.is_in_calc)
+                          ? 'bg-blue-300 border-blue-400 text-white'
+                          : 'bg-gray-200 border-gray-300 text-gray-500'
+                      }`}
+                      title={transactions.some(t => t.is_in_calc) ? 'Toggle all off' : 'Toggle all on'}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </button>
+                  </div>
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
@@ -664,12 +850,13 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
                 strategy={verticalListSortingStrategy}
               >
                 {transactions.map((t) => (
-                  <SortableTransactionRow 
-                    key={t.id} 
-                    transaction={t} 
+                  <SortableTransactionRow
+                    key={t.id}
+                    transaction={t}
                     onToggleCalc={toggleCalc}
                     onDelete={deleteTransaction}
                     onUpdate={updateTransaction}
+                    onDuplicate={duplicateTransaction}
                   />
                 ))}
               </SortableContext>
