@@ -53,16 +53,29 @@ export default function CurrencyInput({
     }
   }, [value])
 
+  // Check if all text is selected
+  const isAllSelected = (): boolean => {
+    const input = inputRef.current
+    if (!input) return false
+    return input.selectionStart === 0 && input.selectionEnd === input.value.length && input.value.length > 0
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Allow: backspace, delete, tab, escape, enter, arrows
     if ([8, 9, 27, 13, 46, 37, 39].includes(e.keyCode)) {
-      if (e.key === 'Backspace') {
+      if (e.key === 'Backspace' || e.key === 'Delete') {
         e.preventDefault()
-        const currentCents = valueToCents(value)
-        const newCents = Math.floor(currentCents / 10)
-        const newValue = centsToValue(newCents)
-        onChange(newValue)
-        setDisplayValue(centsToDisplay(newCents))
+        // If all selected, clear the field
+        if (isAllSelected()) {
+          onChange('')
+          setDisplayValue('')
+        } else {
+          const currentCents = valueToCents(value)
+          const newCents = Math.floor(currentCents / 10)
+          const newValue = centsToValue(newCents)
+          onChange(newValue)
+          setDisplayValue(centsToDisplay(newCents))
+        }
       } else if (onKeyDown) {
         onKeyDown(e)
       }
@@ -78,7 +91,10 @@ export default function CurrencyInput({
     e.preventDefault()
 
     const digit = parseInt(e.key, 10)
-    const currentCents = valueToCents(value)
+
+    // If all selected, start fresh with just this digit
+    const startFresh = isAllSelected()
+    const currentCents = startFresh ? 0 : valueToCents(value)
     const newCents = currentCents * 10 + digit
 
     // Prevent overflow (max ~$999,999,999.99)
