@@ -34,7 +34,8 @@ function BillRow({
   getFrequencyColor,
   formatDate,
   formatLastAdvanced,
-  isDueSoon
+  isDueSoon,
+  isPastDue
 }: {
   template: BillTemplate,
   onUpdate: (id: string, updates: Partial<BillTemplate>) => Promise<void>,
@@ -45,7 +46,8 @@ function BillRow({
   getFrequencyColor: (freq: Frequency) => string,
   formatDate: (date: string | null) => string,
   formatLastAdvanced: (date: string | null) => string | null,
-  isDueSoon: boolean
+  isDueSoon: boolean,
+  isPastDue: boolean
 }) {
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState(template.name)
@@ -119,7 +121,7 @@ function BillRow({
   }
 
   return (
-    <div className={`p-2 hover:bg-gray-50 rounded border group transition ${isDueSoon ? 'bg-yellow-50 border-l-4 border-l-amber-400 border-t-transparent border-r-transparent border-b-transparent' : 'border-transparent hover:border-gray-200'}`}>
+    <div className={`p-2 hover:bg-gray-50 rounded border group transition ${isPastDue ? 'bg-red-50 border-l-4 border-l-red-500 border-t-transparent border-r-transparent border-b-transparent' : isDueSoon ? 'bg-yellow-50 border-l-4 border-l-amber-400 border-t-transparent border-r-transparent border-b-transparent' : 'border-transparent hover:border-gray-200'}`}>
       <div className="flex justify-between items-center">
         <div 
           className="cursor-pointer hover:text-blue-600 flex-1 min-w-0 pr-2"
@@ -468,6 +470,20 @@ export default function BillSchedule({ userId, onTransactionAdded, workbenchOpti
     return diffDays >= 0 && diffDays <= 3
   }
 
+  // Check if a bill is past due or due today
+  const isPastDue = (dateString: string | null): boolean => {
+    if (!dateString) return false
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const dueDate = new Date(dateString + 'T00:00:00')
+    const diffTime = dueDate.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+    return diffDays <= 0
+  }
+
   const filteredTemplates = templates.filter(t => showAnnual || t.frequency !== 'annually')
 
   // Handle sort toggle
@@ -625,6 +641,7 @@ export default function BillSchedule({ userId, onTransactionAdded, workbenchOpti
             formatDate={formatDate}
             formatLastAdvanced={formatLastAdvanced}
             isDueSoon={isDueSoon(t.next_due_date)}
+            isPastDue={isPastDue(t.next_due_date)}
           />
         ))}
         {sortedTemplates.length === 0 && !isAdding && (
