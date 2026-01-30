@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { accountColors } from '../lib/accountColors'
+import CurrencyInput from './CurrencyInput'
 import {
   DndContext,
   closestCenter,
@@ -115,17 +116,11 @@ function SortableAccountRow({
           </div>
         </td>
         <td className="px-4 py-3 whitespace-nowrap text-right">
-          <input
-            type="number"
-            step="0.01"
+          <CurrencyInput
             value={editBalance}
-            onChange={(e) => setEditBalance(e.target.value)}
-            onBlur={(e) => {
-              const val = parseFloat(e.target.value)
-              if (!isNaN(val)) setEditBalance(val.toFixed(2))
-            }}
+            onChange={setEditBalance}
             onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-            className="px-2 py-1 border rounded text-sm w-24 text-right focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+            className="px-2 py-1 border rounded text-sm w-28 text-right focus:ring-2 focus:ring-blue-500 outline-none font-mono"
           />
         </td>
         <td className="px-4 py-3 whitespace-nowrap text-right hidden sm:table-cell">
@@ -568,15 +563,9 @@ export default function Accounts({ userId, onBalanceChange, onAccountsUpdate }: 
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Balance</label>
-              <input
-                type="number"
-                step="0.01"
+              <CurrencyInput
                 value={balance}
-                onChange={(e) => setBalance(e.target.value)}
-                onBlur={(e) => {
-                  const val = parseFloat(e.target.value)
-                  if (!isNaN(val)) setBalance(val.toFixed(2))
-                }}
+                onChange={setBalance}
                 className="w-full px-3 py-2 border rounded text-sm"
                 placeholder="0.00"
                 required

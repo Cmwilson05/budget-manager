@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { getAccountColor } from '../lib/accountColors'
+import CurrencyInput from './CurrencyInput'
 
 interface Capture {
   id: string
@@ -251,11 +252,9 @@ export default function Captures({ userId, accounts = [] }: CapturesProps) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1">Amount</label>
-              <input
-                type="number"
-                step="0.01"
+              <CurrencyInput
                 value={newAmount}
-                onChange={(e) => setNewAmount(e.target.value)}
+                onChange={setNewAmount}
                 className="w-full px-3 py-2 border rounded text-sm"
                 placeholder="0.00"
                 required
@@ -295,11 +294,9 @@ export default function Captures({ userId, accounts = [] }: CapturesProps) {
               {editingId === capture.id ? (
                 /* Edit Mode */
                 <div className="space-y-2">
-                  <input
-                    type="number"
-                    step="0.01"
+                  <CurrencyInput
                     value={editAmount}
-                    onChange={(e) => setEditAmount(e.target.value)}
+                    onChange={setEditAmount}
                     onKeyDown={(e) => e.key === 'Enter' && updateCapture(capture.id)}
                     className="w-full px-2 py-1 border rounded text-sm text-right font-mono"
                   />
