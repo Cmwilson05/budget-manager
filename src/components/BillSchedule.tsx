@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import CurrencyInput from './CurrencyInput'
 
 export type Frequency = 'bi-weekly' | 'monthly' | 'quarterly' | 'annually'
 
@@ -80,13 +81,11 @@ function BillRow({
         />
         <div className="flex flex-col sm:flex-row gap-2 overflow-hidden">
           <div className="w-full sm:w-1/2">
-            <input
-              type="number"
-              step="0.01"
+            <CurrencyInput
               placeholder="Amount"
               className="w-full px-2 py-1 border rounded box-border"
               value={editAmount}
-              onChange={e => setEditAmount(e.target.value)}
+              onChange={setEditAmount}
               onKeyDown={(e) => e.key === 'Enter' && handleSave()}
             />
           </div>
@@ -561,13 +560,11 @@ export default function BillSchedule({ userId, onTransactionAdded, workbenchOpti
           />
           <div className="flex flex-col sm:flex-row gap-2 overflow-hidden">
             <div className="w-full sm:w-1/2">
-              <input
-                type="number"
-                step="0.01"
+              <CurrencyInput
                 placeholder="Amount"
                 className="w-full px-2 py-1 border rounded box-border"
                 value={newAmount}
-                onChange={e => setNewAmount(e.target.value)}
+                onChange={setNewAmount}
                 required
               />
             </div>

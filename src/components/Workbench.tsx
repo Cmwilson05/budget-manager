@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { triggerCapture } from './Captures'
 import { getAccountColor } from '../lib/accountColors'
+import CurrencyInput from './CurrencyInput'
 import {
   DndContext,
   closestCenter,
@@ -157,11 +158,9 @@ function SortableTransactionRow({
                     onChange={(e) => setEditIsIncome(e.target.checked)}
                     className="rounded text-green-600"
                   />
-                  <input
-                    type="number"
-                    step="0.01"
+                  <CurrencyInput
                     value={editAmount}
-                    onChange={(e) => setEditAmount(e.target.value)}
+                    onChange={setEditAmount}
                     onKeyDown={(e) => e.key === 'Enter' && handleSave()}
                     className="w-full px-2 py-1 text-sm border rounded text-right font-mono box-border"
                   />
@@ -488,15 +487,21 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
     if (originalIndex === -1) return
 
     const transactionToDuplicate = transactions[originalIndex]
-
-    // Calculate sort_order to place duplicate right after original
     const currentSort = transactionToDuplicate.sort_order || 0
-    const nextSort = originalIndex < transactions.length - 1
-      ? (transactions[originalIndex + 1].sort_order || 0)
-      : currentSort + 2
-    const newSortOrder = (currentSort + nextSort) / 2
 
     try {
+      // Shift all subsequent transactions' sort_order to make room
+      const transactionsToShift = transactions.slice(originalIndex + 1)
+      if (transactionsToShift.length > 0) {
+        const shiftUpdates = transactionsToShift.map(t => ({
+          ...t,
+          user_id: userId,
+          sort_order: (t.sort_order || 0) + 1
+        }))
+        await supabase.from('transactions').upsert(shiftUpdates)
+      }
+
+      // Insert the duplicate with sort_order right after the original
       const { data, error } = await supabase
         .from('transactions')
         .insert([
@@ -507,7 +512,7 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
             status: transactionToDuplicate.status,
             is_in_calc: transactionToDuplicate.is_in_calc,
             due_date: transactionToDuplicate.due_date || null,
-            sort_order: newSortOrder,
+            sort_order: currentSort + 1,
             tag: transactionToDuplicate.tag || null
           }
         ])
@@ -518,6 +523,10 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
       if (data) {
         // Insert the duplicate right after the original in the list
         const newTransactions = [...transactions]
+        // Update sort orders for shifted items in local state
+        for (let i = originalIndex + 1; i < newTransactions.length; i++) {
+          newTransactions[i] = { ...newTransactions[i], sort_order: (newTransactions[i].sort_order || 0) + 1 }
+        }
         newTransactions.splice(originalIndex + 1, 0, data[0])
         setTransactions(newTransactions)
       }
@@ -769,11 +778,9 @@ export default function Workbench({ userId, startingBalance, refreshTrigger, tit
           <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto items-start sm:items-end overflow-hidden">
             <div className="w-full sm:flex-1 md:w-32">
               <label className="block text-xs font-medium text-gray-700 mb-1">Amount</label>
-              <input
-                type="number"
-                step="0.01"
+              <CurrencyInput
                 value={newAmount}
-                onChange={(e) => setNewAmount(e.target.value)}
+                onChange={setNewAmount}
                 className="w-full px-3 py-2 border rounded text-sm box-border"
                 placeholder="0.00"
                 required
