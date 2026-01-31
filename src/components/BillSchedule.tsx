@@ -455,7 +455,7 @@ export default function BillSchedule({ userId, onTransactionAdded, workbenchOpti
     }
   }
 
-  // Check if a bill is due within the next 3 days
+  // Check if a bill is due within the next 7 days
   const isDueSoon = (dateString: string | null): boolean => {
     if (!dateString) return false
 
@@ -466,7 +466,7 @@ export default function BillSchedule({ userId, onTransactionAdded, workbenchOpti
     const diffTime = dueDate.getTime() - today.getTime()
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
-    return diffDays >= 0 && diffDays <= 3
+    return diffDays >= 0 && diffDays <= 7
   }
 
   // Check if a bill is past due or due today
