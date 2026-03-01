@@ -4,20 +4,11 @@ import type { Session } from '@supabase/supabase-js'
 import Auth from './components/Auth'
 import Accounts from './components/Accounts'
 import Workbench from './components/Workbench'
-import BillSchedule, { type BillTemplate } from './components/BillSchedule'
+import BillSchedule from './components/BillSchedule'
 import Notes from './components/Notes'
 import Captures from './components/Captures'
 import { getAccountColor } from './lib/accountColors'
-
-// Define Account interface here or import it
-interface Account {
-  id: string
-  name: string
-  current_balance: number
-  is_liability: boolean
-  sort_order: number
-  color_index?: number
-}
+import type { Account, BillTemplate } from './types'
 
 function App() {
   const [session, setSession] = useState<Session | null>(null)

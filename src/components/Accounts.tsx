@@ -19,16 +19,7 @@ import {
   useSortable
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-
-interface Account {
-  id: string
-  name: string
-  current_balance: number
-  is_liability: boolean
-  sort_order: number
-  color_index?: number
-  include_in_workbench?: boolean // Computed field
-}
+import type { Account } from '../types'
 
 interface AccountsProps {
   userId: string

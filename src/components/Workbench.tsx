@@ -20,32 +20,7 @@ import {
   useSortable
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-
-interface Transaction {
-  id: string
-  description: string
-  amount: number
-  status: 'paid' | 'pending' | 'planning'
-  is_in_calc: boolean
-  due_date?: string
-  sort_order: number
-  tag?: string
-}
-
-interface Account {
-  id: string
-  name: string
-  current_balance: number
-  is_liability: boolean
-  color_index?: number
-}
-
-interface BillTemplate {
-  id: string
-  name: string
-  default_amount: number
-  frequency: 'bi-weekly' | 'monthly' | 'quarterly' | 'annually'
-}
+import type { Account, BillTemplate, Transaction } from '../types'
 
 interface WorkbenchProps {
   userId: string
