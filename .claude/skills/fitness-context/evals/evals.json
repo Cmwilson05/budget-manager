@@ -1,0 +1,38 @@
+[
+  {
+    "id": "apple-health-parse",
+    "prompt": "I just exported my Apple Health data. Here's the export.xml. Can you pull out my resting heart rate, VO2 max, and running pace trends and add them to my fitness report?",
+    "should_trigger": true,
+    "expected_behavior": "Skill triggers on 'Apple Health data' + 'export.xml'. Claude should: (1) use streaming iterparse to avoid memory issues, (2) extract resting HR trend + all-time low, (3) extract VO2 max readings, (4) calculate per-run pace and match HR records to workout windows, (5) compute Karvonen HR zones, (6) flag if easy runs are drifting into Z3, (7) read the existing fitness context doc before editing, (8) place findings in Running Profile and Heart Rate Profile sections."
+  },
+  {
+    "id": "workout-csv-capabilities",
+    "prompt": "Here's my workout_data.csv from Hevy. Update my resistance training section with what I was actually capable of before my hiatus.",
+    "should_trigger": true,
+    "expected_behavior": "Skill triggers on 'workout_data.csv'. Claude should: (1) group by exercise name, (2) find peak weight × reps per exercise, (3) distinguish bodyweight vs. weighted vs. weighted-bodyweight progressions, (4) note set counts as volume proxy, (5) produce a capabilities table (Exercise | Peak Weight/Level | Notes), (6) present findings conversationally before touching the file, (7) place table in Resistance Training section of the context doc."
+  },
+  {
+    "id": "loseit-nutrition-parse",
+    "prompt": "I exported my Lose It! food logs. Can you figure out what I'm actually eating every day and update the diet section of my fitness context doc?",
+    "should_trigger": true,
+    "expected_behavior": "Skill triggers on 'Lose It! food logs'. Claude should: (1) filter Deleted == '0', (2) identify most-frequently logged foods as dietary staples, (3) compute daily macro averages only on days with 3+ entries, (4) anchor protein estimate on known staples (yogurt, chicken) rather than trusting the daily log average, (5) flag any foods that contradict dietary changes the user mentioned, (6) present findings before editing, (7) update Diet Supporting Training section."
+  },
+  {
+    "id": "verbal-weight-update",
+    "prompt": "My weight is now 198 lbs. Update my fitness context doc.",
+    "should_trigger": true,
+    "expected_behavior": "Skill triggers on 'update my fitness context doc'. Claude should: (1) search the entire file for all weight mentions (not just one), (2) update weight in executive summary, weight history table, and any derived calculations, (3) confirm all changes made and quote the new numbers."
+  },
+  {
+    "id": "negative-unrelated-doc",
+    "prompt": "Can you summarize the book Atomic Habits for me?",
+    "should_trigger": false,
+    "expected_behavior": "No fitness data, no fitness context doc involved. Skill should NOT trigger. Claude answers normally."
+  },
+  {
+    "id": "negative-general-health-question",
+    "prompt": "What's a good heart rate zone for fat burning?",
+    "should_trigger": false,
+    "expected_behavior": "General health question with no data upload or fitness context doc. Skill should NOT trigger. Claude answers from general knowledge."
+  }
+]

@@ -1,0 +1,170 @@
+---
+name: fitness-context
+description: >
+  Use this skill whenever the user uploads or references health or fitness data exports and wants findings incorporated into a fitness context document, report, or markdown note. Trigger on: Apple Health export.xml, workout tracking CSVs (from apps like Hevy, Strong, or any gym tracker), nutrition app exports (Lose It!, MyFitnessPal, Cronometer), Garmin/Strava activity exports, or any combination of these. Also trigger when the user asks to update specific facts in a fitness markdown file (weight, diet changes, terminology), or when they ask to parse, summarize, or extract metrics from health data files — even if they don't explicitly mention a "context report." If the user uploads a health data file and asks what to do with it, use this skill. Do NOT trigger for general fitness or health questions with no attached data file and no reference to an existing fitness document.
+---
+
+# Fitness Context Skill
+
+This skill guides Claude through parsing health and fitness data exports and incorporating the findings into a living fitness context document — a markdown file that serves as a running record of training history, metrics, diet, and goals.
+
+---
+
+## When You're Called
+
+You'll typically be given one or more of the following:
+
+- A **fitness context markdown file** to update (the target document)
+- One or more **data export files** to parse (the sources)
+- **Verbal updates** from the user (e.g., "I switched from X to Y", "my current weight is Z")
+
+The job is always the same: extract what's meaningful, and put it in the right place in the document.
+
+---
+
+## The Data Sources and What to Extract
+
+### Apple Health export.xml
+
+This is a large file (often millions of lines). Always use streaming XML parsing — never load it all at once.
+
+**Key record types to look for:**
+
+| Type identifier | What it gives you |
+|---|---|
+| `HKQuantityTypeIdentifierRestingHeartRate` | Resting HR over time |
+| `HKQuantityTypeIdentifierHeartRate` | Beat-by-beat HR (match to workout windows for per-run avg/max) |
+| `HKQuantityTypeIdentifierVO2Max` | Apple Watch VO2 max estimate |
+| `HKQuantityTypeIdentifierDistanceWalkingRunning` | Distance in miles (accumulate within workout windows) |
+| `HKQuantityTypeIdentifierRunningSpeed` | Instantaneous speed in mi/hr |
+| `HKWorkoutActivityTypeRunning` | Workout sessions (start/end timestamps, duration in minutes) |
+
+**Parsing approach:**
+1. First pass: collect all running workout windows (start, end, duration) where duration > 10 min
+2. Second pass: stream all Record elements, matching HR and distance records to workout windows by timestamp
+3. Calculate per-run avg HR, max HR, distance, and pace (duration_min / distance_mi)
+4. Collect resting HR records separately — report recent average and all-time low
+5. Grab the most recent VO2 max readings
+
+**HR zone calculation (Karvonen method):**
+```
+HRR = max_hr - resting_hr
+Zone N lower = resting_hr + (HRR × lower_pct)
+Zone N upper = resting_hr + (HRR × upper_pct)
+```
+
+Standard zones: Z1 50–60%, Z2 60–70%, Z3 70–80%, Z4 80–90%, Z5 90–100%
+
+Always flag if easy runs are drifting into Z3 — this is a common and consequential training error.
+
+---
+
+### Workout Tracking CSV (Hevy, Strong, generic gym trackers)
+
+Typical columns: `Date`, `Name`/`exercise_title`, `set_index`, `weight_lbs`, `reps`, `duration_seconds`
+
+**What to extract:**
+- All unique exercise names (the full catalog)
+- Per-exercise: max weight × reps (peak lift), number of sets logged (volume proxy)
+- Bodyweight exercises: max reps per set and set count
+- Weighted bodyweight work (pull-ups+10 lbs, etc.): note as "weighted progression initiated"
+- Date range: first and last session dates
+- Filter out deleted entries and non-exercise rows (warm-ups, stretching) for the capability table, but note their presence
+
+**Present as:** A capabilities table with Exercise | Peak Weight/Level | Notes columns. Be specific — "135 lbs × 8 reps" is more useful than "heavy."
+
+---
+
+### Lose It! Exports (food-logs.csv, exercise-logs.csv, calorie-bonus.csv)
+
+**food-logs.csv** columns: `Date`, `Name`, `Meal`, `Quantity`, `Units`, `Calories`, `Deleted`, `Fat (g)`, `Protein (g)`, `Carbohydrates (g)`, etc.
+
+- Filter `Deleted == '0'` before any analysis
+- Most frequently logged foods = actual diet (users who eat the same things daily confirm their staples this way)
+- Compute daily macro averages only on days with 3+ entries (partial days skew the numbers)
+- Note that tracking typically tapers off as the day progresses — logged protein will be an undercount; reason from the anchor foods (yogurt, chicken, etc.) to estimate actual intake
+- Flag any food items that the user has mentioned switching away from (e.g., old yogurt brand) that still appear in the log
+
+**exercise-logs.csv** columns: `Date`, `Name`, `Type`, `Quantity`, `Units`, `Calories`, `Deleted`
+
+- Filter out `Fitbit Adjustment` and similar auto-sync entries for exercise analysis
+- Group Strava runs by month to show training volume trends
+- Compare hiatus months vs. peak months explicitly — run count, total minutes, avg duration
+
+**calorie-bonus.csv**: Shows daily exercise calorie burn (from connected fitness tracker).
+
+- Group by month: avg daily burn, active days vs. zero days
+- This is the clearest signal for "how active were they really during the hiatus"
+
+---
+
+## The Target Document
+
+The fitness context document is a living markdown file. When updating it:
+
+1. **Read the full file first** — understand the existing structure before touching anything
+2. **Match findings to sections** — don't dump raw data; place each insight in the section it belongs to
+3. **Preserve what's there** — only replace content when you have better data to replace it with
+4. **Be precise with edits** — when a number changes (weight, protein target, yogurt brand), find every mention and update all of them consistently
+5. **When in doubt, add a new subsection** — rather than overwriting, add "Data sourced from X export (date)" as a new subsection header so the provenance is clear
+
+**Common sections and what feeds them:**
+
+| Section | Fed by |
+|---|---|
+| Executive Summary (weight, status) | User verbal update |
+| Weight History table | User verbal update |
+| Running Profile / Pace and Zone | Apple Health XML |
+| Heart Rate Profile and Zones | Apple Health XML |
+| Resistance Training Capabilities | Workout tracking CSV |
+| Diet Supporting Training | Lose It! food-logs |
+| Hiatus Activity Analysis | Lose It! exercise-logs + calorie-bonus |
+
+---
+
+## Handling Verbal Updates
+
+When the user says something like "I switched to X", "my weight is now Y", or "I'm eating Z grams of protein":
+
+- Treat these as ground truth — update the document to match
+- Search the entire file for all related mentions, not just the obvious one
+- Pay attention to derived values: changing a food item may change protein totals, which may change the macro table
+- Update the "last updated" date at the bottom of the document
+
+---
+
+## Output Expectations
+
+After parsing any data source, summarize findings conversationally before touching the file:
+
+- Lead with what's new or surprising
+- Flag anything that contradicts what's currently in the document
+- Note any data quality issues (partial tracking, missing fields, unit ambiguities)
+- Ask for confirmation if scope is large or destructive (e.g., replacing an entire section)
+
+After updating the file:
+
+- Confirm what changed and where
+- Quote the new numbers so the user can spot-check without opening the file
+- Note anything you couldn't resolve from the data alone
+
+---
+
+## Quick Parsing Reference
+
+```python
+# Apple Health — streaming parse (safe for multi-million line files)
+import xml.etree.ElementTree as ET
+context = ET.iterparse(path, events=('start', 'end'))
+for event, elem in context:
+    if event == 'start' and elem.tag == 'Record':
+        rtype = elem.attrib.get('type', '')
+        # handle by type
+    if event == 'end':
+        elem.clear()  # critical — prevents memory blowup
+
+# Lose It! CSVs — standard csv.DictReader, always filter Deleted first
+import csv
+with open(path, newline='', encoding='utf-8') as f:
+    rows = [r for r in csv.DictReader(f) if r.get('Deleted','0') == '0']
+```
