@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { getAccountColor } from '../lib/accountColors'
 import CurrencyInput from './CurrencyInput'
+import type { Account } from '../types'
 
 interface Capture {
   id: string
@@ -9,15 +10,6 @@ interface Capture {
   note: string
   source?: string
   created_at: string
-}
-
-interface Account {
-  id: string
-  name: string
-  current_balance: number
-  is_liability: boolean
-  sort_order: number
-  color_index?: number
 }
 
 interface CapturesProps {

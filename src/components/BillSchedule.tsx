@@ -1,17 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import CurrencyInput from './CurrencyInput'
+import type { Frequency, BillTemplate } from '../types'
 
-export type Frequency = 'bi-weekly' | 'monthly' | 'quarterly' | 'annually'
-
-export interface BillTemplate {
-  id: string
-  name: string
-  default_amount: number
-  frequency: Frequency
-  next_due_date: string | null
-  last_advanced_at: string | null
-}
+export type { Frequency, BillTemplate }
 
 interface WorkbenchOption {
   title: string
