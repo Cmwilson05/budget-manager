@@ -377,39 +377,6 @@ ws_bills.cell(row=bill_summary_row+1, column=2).number_format = money_format
 
 
 # ============================================================
-# SHEET 5: CAPTURES
-# ============================================================
-ws_captures = wb.create_sheet("Captures")
-
-ws_captures.column_dimensions['A'].width = 16
-ws_captures.column_dimensions['B'].width = 18
-ws_captures.column_dimensions['C'].width = 35
-
-capture_headers = ["Date", "Projected Amount", "Note"]
-for col, h in enumerate(capture_headers, 1):
-    cell = ws_captures.cell(row=1, column=col, value=h)
-    cell.font = header_font
-    cell.fill = PatternFill(start_color="D4E6F1", end_color="D4E6F1", fill_type="solid")
-    cell.border = thin_border
-    cell.alignment = Alignment(horizontal='center')
-
-# Sample captures
-sample_captures = [
-    (date(2026, 5, 5), 3245.00, "After all May bills"),
-    (date(2026, 4, 28), 2100.00, "After rent + utilities"),
-    (date(2026, 4, 15), 4800.00, "Post-paycheck snapshot"),
-]
-
-for i, (d, amount, note) in enumerate(sample_captures, 2):
-    ws_captures.cell(row=i, column=1, value=d).number_format = 'M/D/YY'
-    ws_captures.cell(row=i, column=1).border = thin_border
-    c = ws_captures.cell(row=i, column=2, value=amount)
-    c.number_format = '$#,##0.00'
-    c.border = thin_border
-    ws_captures.cell(row=i, column=3, value=note).border = thin_border
-
-
-# ============================================================
 # SAVE
 # ============================================================
 output_path = "/home/user/budget-manager/budget-manager.xlsx"
