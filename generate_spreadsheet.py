@@ -250,21 +250,21 @@ for sheet_name, tag, account_name in cc_accounts:
         c.alignment = Alignment(horizontal='center')
 
     # Balance owed - VLOOKUP from Accounts
-    ws_cc.cell(row=3, column=1, value=f'=IFERROR(-SUMIFS(Accounts!B2:B100,Accounts!A2:A100,"*{account_name.split(" - ")[1].split(" ")[0]}*",Accounts!C2:C100,"Liability"),0)')
+    ws_cc.cell(row=3, column=1, value=f'=IFERROR(-SUMIFS(Accounts!B2:B105,Accounts!A2:A105,"*{account_name.split(" - ")[1].split(" ")[0]}*",Accounts!C2:C105,"Liability"),0)')
     ws_cc.cell(row=3, column=1).font = red_font
     ws_cc.cell(row=3, column=1).fill = dark_fill
     ws_cc.cell(row=3, column=1).number_format = '$#,##0.00'
     ws_cc.cell(row=3, column=1).alignment = Alignment(horizontal='center')
 
-    # Charges (negative amounts where in_calc=TRUE)
-    ws_cc.cell(row=3, column=2, value=f'=SUMPRODUCT((A{DATA_START}:A{DATA_END}=TRUE)*(D{DATA_START}:D{DATA_END}<0)*D{DATA_START}:D{DATA_END})')
+    # Charges (negative amounts where in_calc=TRUE) — Col D = In Calc?, Col B = Amount
+    ws_cc.cell(row=3, column=2, value=f'=SUMPRODUCT((D{DATA_START}:D{DATA_END}=TRUE)*(B{DATA_START}:B{DATA_END}<0)*B{DATA_START}:B{DATA_END})')
     ws_cc.cell(row=3, column=2).font = red_font
     ws_cc.cell(row=3, column=2).fill = dark_fill
     ws_cc.cell(row=3, column=2).number_format = '$#,##0.00'
     ws_cc.cell(row=3, column=2).alignment = Alignment(horizontal='center')
 
-    # Payments (positive amounts where in_calc=TRUE)
-    ws_cc.cell(row=3, column=3, value=f'=SUMPRODUCT((A{DATA_START}:A{DATA_END}=TRUE)*(D{DATA_START}:D{DATA_END}>0)*D{DATA_START}:D{DATA_END})')
+    # Payments (positive amounts where in_calc=TRUE) — Col D = In Calc?, Col B = Amount
+    ws_cc.cell(row=3, column=3, value=f'=SUMPRODUCT((D{DATA_START}:D{DATA_END}=TRUE)*(B{DATA_START}:B{DATA_END}>0)*B{DATA_START}:B{DATA_END})')
     ws_cc.cell(row=3, column=3).font = green_font
     ws_cc.cell(row=3, column=3).fill = dark_fill
     ws_cc.cell(row=3, column=3).number_format = '$#,##0.00'
@@ -277,8 +277,8 @@ for sheet_name, tag, account_name in cc_accounts:
     ws_cc.cell(row=3, column=4).number_format = '$#,##0.00'
     ws_cc.cell(row=3, column=4).alignment = Alignment(horizontal='center')
 
-    # Column headers
-    headers = ["In Calc?", "Due Date", "Description", "Amount"]
+    # Column headers — Description, Amount, Due Date, In Calc?
+    headers = ["Description", "Amount", "Due Date", "In Calc?"]
     for col, h in enumerate(headers, 1):
         cell = ws_cc.cell(row=5, column=col, value=h)
         cell.font = header_font
@@ -286,15 +286,15 @@ for sheet_name, tag, account_name in cc_accounts:
         cell.border = thin_border
         cell.alignment = Alignment(horizontal='center')
 
-    # Data validation
+    # Data validation for In Calc? (column D)
     dv = DataValidation(type="list", formula1='"TRUE,FALSE"', allow_blank=False)
     ws_cc.add_data_validation(dv)
-    dv.add(f"A{DATA_START}:A{DATA_END}")
+    dv.add(f"D{DATA_START}:D{DATA_END}")
 
-    # Gray out inactive rows
+    # Gray out inactive rows (In Calc? is column D)
     ws_cc.conditional_formatting.add(
         f"A{DATA_START}:D{DATA_END}",
-        FormulaRule(formula=[f'$A{DATA_START}=FALSE'], fill=gray_fill)
+        FormulaRule(formula=[f'$D{DATA_START}=FALSE'], fill=gray_fill)
     )
 
 
